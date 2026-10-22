@@ -22,19 +22,13 @@ public final class ControlsMenu {
     private static final String ALTERNATIVE_NARRATION = "kaboomkeybinds.controls.alternative.narration";
 
     /**
-     * Header height of the screen when the column headings are shown. The vanilla header (33 pixels) only holds the
-     * title. The headings need a line of their own below the title and above the list separator.
+     * Header height of the key binds screen. The vanilla header (33 pixels) only holds the title. The column headings
+     * need a line of their own below the title and above the list separator.
      */
-    public static final int HEADER_HEIGHT_WITH_HEADINGS = 48;
+    public static final int HEADER_HEIGHT = 48;
     /** Distance from the top of the list to the top of the heading text: 2 pixel separator, 1 pixel gap, 9 pixel font. */
     public static final int HEADING_OFFSET_ABOVE_LIST = 12;
     public static final int HEADING_COLOR = CommonColors.LIGHT_GRAY;
-
-    /**
-     * Whether the column headings are drawn. Switchable so that the automated tests can take screenshots with and
-     * without headings while the final look is being decided. Becomes a constant once that decision is made.
-     */
-    public static volatile boolean showColumnHeadings = true;
 
     private ControlsMenu() {
     }

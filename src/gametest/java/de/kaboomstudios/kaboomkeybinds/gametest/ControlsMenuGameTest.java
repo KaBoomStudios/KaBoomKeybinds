@@ -6,7 +6,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import de.kaboomstudios.kaboomkeybinds.client.AlternativeKeySelection;
 import de.kaboomstudios.kaboomkeybinds.client.AlternativeKeys;
-import de.kaboomstudios.kaboomkeybinds.client.ControlsMenu;
 import de.kaboomstudios.kaboomkeybinds.client.KeyEntryAccess;
 import de.kaboomstudios.kaboomkeybinds.core.KeyRowLayout;
 import java.io.IOException;
@@ -32,8 +31,7 @@ import net.minecraft.network.chat.contents.TranslatableContents;
 /**
  * Drives the controls menu with real mouse and keyboard input: binding an alternative key with the keyboard and
  * the mouse, Escape, conflicts, the one key per mapping rule, the reset buttons, and the row layout. Finally takes
- * screenshots of the menu in both languages at several GUI scales and window sizes, with and without the column
- * headings, for the layout review.
+ * screenshots of the menu in both languages at several GUI scales and window sizes for the layout review.
  *
  * <p>Runs after {@link AlternativeKeyGameTest}, which leaves the alternative keys of the prepared file in place.
  */
@@ -50,21 +48,19 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
     private static final int ALTERNATIVE = 1;
     private static final int RESET = 2;
 
-    /** One screenshot of the menu: language, window size in pixels, GUI scale and whether the headings are shown. */
-    private record Shot(String language, int width, int height, int guiScale, boolean headings, String name) {
+    /** One screenshot of the menu: language, window size in pixels and GUI scale. */
+    private record Shot(String language, int width, int height, int guiScale, String name) {
     }
 
     private static final List<Shot> SHOTS = List.of(
-            new Shot("en_us", 1920, 1080, 4, true, "controls-en-1080p-scale4-headings"),
-            new Shot("en_us", 1920, 1080, 4, false, "controls-en-1080p-scale4-no-headings"),
-            new Shot("en_us", 1280, 720, 1, true, "controls-en-720p-scale1"),
-            new Shot("en_us", 1280, 720, 2, true, "controls-en-720p-scale2"),
-            new Shot("en_us", 1280, 720, 3, true, "controls-en-720p-scale3"),
-            new Shot("en_us", 854, 480, 2, true, "controls-en-small-window-scale2"),
-            new Shot("de_de", 1920, 1080, 4, true, "controls-de-1080p-scale4-headings"),
-            new Shot("de_de", 1920, 1080, 4, false, "controls-de-1080p-scale4-no-headings"),
-            new Shot("de_de", 1280, 720, 3, true, "controls-de-720p-scale3"),
-            new Shot("de_de", 640, 480, 2, true, "controls-de-narrow-window-scale2"));
+            new Shot("en_us", 1920, 1080, 4, "controls-en-1080p-scale4"),
+            new Shot("en_us", 1280, 720, 1, "controls-en-720p-scale1"),
+            new Shot("en_us", 1280, 720, 2, "controls-en-720p-scale2"),
+            new Shot("en_us", 1280, 720, 3, "controls-en-720p-scale3"),
+            new Shot("en_us", 854, 480, 2, "controls-en-small-window-scale2"),
+            new Shot("de_de", 1920, 1080, 4, "controls-de-1080p-scale4"),
+            new Shot("de_de", 1280, 720, 3, "controls-de-720p-scale3"),
+            new Shot("de_de", 640, 480, 2, "controls-de-narrow-window-scale2"));
 
     @Override
     public void runTest(ClientGameTestContext context) {
@@ -84,7 +80,6 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
             checkResetAll(context);
             takeLayoutScreenshots(context, input);
         } finally {
-            ControlsMenu.showColumnHeadings = true;
             setLanguage(context, "en_us");
             input.resizeWindow(windowSize[0], windowSize[1]);
             context.restoreDefaultGameOptions();
@@ -322,7 +317,6 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
 
         for (Shot shot : SHOTS) {
             setLanguage(context, shot.language());
-            ControlsMenu.showColumnHeadings = shot.headings();
             input.resizeWindow(shot.width(), shot.height());
             context.waitTicks(2);
             // The scale option is clamped to what the window allows, so it is set after the window has its size.

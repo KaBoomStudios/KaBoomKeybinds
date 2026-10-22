@@ -56,9 +56,7 @@ public abstract class KeyBindsScreenMixin extends OptionsSubScreen implements Al
     /** The headings need a line between the title and the list, so the header grows before the list is laid out. */
     @Inject(method = "addContents", at = @At("HEAD"))
     private void makeRoomForColumnHeadings(CallbackInfo ci) {
-        if (ControlsMenu.showColumnHeadings) {
-            this.layout.setHeaderHeight(ControlsMenu.HEADER_HEIGHT_WITH_HEADINGS);
-        }
+        this.layout.setHeaderHeight(ControlsMenu.HEADER_HEIGHT);
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
@@ -127,7 +125,7 @@ public abstract class KeyBindsScreenMixin extends OptionsSubScreen implements Al
     /** Draws the column headings centred above the two key buttons, in the line the larger header provides. */
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void drawColumnHeadings(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a, CallbackInfo ci) {
-        if (!ControlsMenu.showColumnHeadings || this.keyBindsList == null) {
+        if (this.keyBindsList == null) {
             return;
         }
         int buttonWidth = KeyRowLayout.keyButtonWidth(this.keyBindsList.getRowWidth());

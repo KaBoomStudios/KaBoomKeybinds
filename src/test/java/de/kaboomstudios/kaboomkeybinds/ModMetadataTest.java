@@ -12,6 +12,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -81,6 +85,25 @@ class ModMetadataTest {
         JsonObject german = readJson("/assets/kaboomkeybinds/lang/de_de.json");
 
         assertEquals(english.keySet(), german.keySet(), "en_us and de_de must translate the same keys");
+    }
+
+    /**
+     * The jar must run with Fabric Loader alone. Fabric API is on the development class path, so a stray import would
+     * compile fine and only fail for players. The compiled main classes are therefore scanned for references to its
+     * packages. Fabric Loader itself lives in net.fabricmc.api and net.fabricmc.loader, which are allowed.
+     */
+    @Test
+    void mainClassesDoNotReferenceFabricApi() throws Exception {
+        Path classes = Paths.get(KaBoomKeybinds.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+        assertTrue(Files.isDirectory(classes), "expected the directory with the main classes, got " + classes);
+
+        try (Stream<Path> files = Files.walk(classes)) {
+            for (Path file : (Iterable<Path>) files.filter(p -> p.toString().endsWith(".class"))::iterator) {
+                String content = new String(Files.readAllBytes(file), StandardCharsets.ISO_8859_1);
+                assertFalse(content.contains("net/fabricmc/fabric/"),
+                        "Fabric API reference in " + classes.relativize(file));
+            }
+        }
     }
 
     private static boolean classExists(String className) {

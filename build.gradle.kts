@@ -108,3 +108,13 @@ tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {
     languageVersion = JavaLanguageVersion.of(25)
     toolchainDownloadUrls.empty()
 }
+
+// Loom clears the game test run directory through "deleteGameTestRunDir" and hooks that task into "configureLaunch",
+// which every run task depends on. A plain "runClient" would therefore wipe the screenshots of the last game test run.
+// A clean directory is only needed before the game tests themselves, so the delete task is skipped in every other build.
+gradle.taskGraph.whenReady {
+    val runsClientGameTests = hasTask(":runClientGameTest")
+    tasks.matching { it.name == "deleteGameTestRunDir" }.configureEach {
+        onlyIf("the client game tests are part of this build") { runsClientGameTests }
+    }
+}
