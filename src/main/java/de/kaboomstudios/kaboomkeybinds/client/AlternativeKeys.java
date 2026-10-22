@@ -97,6 +97,24 @@ public final class AlternativeKeys {
         setAlternative(mapping, null);
     }
 
+    /**
+     * Unbinds the alternative keys of all given mappings, used by "Reset All" in the controls menu. The file is
+     * written once and the lookup table rebuilt once, instead of once per mapping. Entries of mappings that are not
+     * present (for example from a mod that is not installed) stay in the file. Entries of present mappings are
+     * removed even if their stored key name could not be read, because the player asked for a clean slate.
+     */
+    public static void clearAll(Iterable<KeyMapping> mappings) {
+        boolean changed = false;
+        for (KeyMapping mapping : mappings) {
+            of(mapping).kaboomkeybinds$setAlternativeKey(null);
+            changed |= store().remove(mapping.getName());
+        }
+        if (changed) {
+            store().save();
+        }
+        KeyMapping.resetMapping();
+    }
+
     private static void apply(KeyMapping mapping, KeyPair<InputConstants.Key> keys) {
         mapping.setKey(orUnknown(keys.primary()));
         of(mapping).kaboomkeybinds$setAlternativeKey(keys.secondary());

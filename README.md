@@ -35,8 +35,14 @@ The mod is client side only. Servers do not need it and players without it are n
 
 ## Usage
 
-Open Options, Controls, Key Binds. Each row shows the first key, a second button for the alternative key and the
-reset button. Click the second button and press the key or mouse button you want. Escape clears the alternative key.
+Open Options, Controls, Key Binds. Each row shows the key button, a second button for the alternative key and the
+reset button. The two columns are labelled "Key" and "Alternative". Click the alternative button and press the key or
+mouse button you want. Escape clears the alternative key.
+
+A key can only sit in one slot of the same keybind: binding the current alternative key as key (or the other way
+round) empties the other slot. Reset restores the default key and clears the alternative key, Reset All does that for
+every keybind. Conflicts are marked like in vanilla, on whichever button holds the conflicting key, and the tooltip
+names the other keybinds that use it.
 
 ## Configuration
 
@@ -58,7 +64,11 @@ alternative keys stay empty.
 
 ## Building from source
 
-Requires JDK 25. Run
+Requires an installed JDK 25. Gradle itself runs on it as well: the daemon JVM criteria in
+`gradle/gradle-daemon-jvm.properties` make the wrapper pick an installed JDK 25 for the build, whatever Java is on the
+`PATH` or in `JAVA_HOME`. Gradle finds JDKs in the usual places (`JAVA_HOME`, IntelliJ IDEA installations, the
+locations of the operating system). If it cannot find one, point `org.gradle.java.installations.paths` in your
+personal `~/.gradle/gradle.properties` at the JDK. Run
 
 ```
 ./gradlew build

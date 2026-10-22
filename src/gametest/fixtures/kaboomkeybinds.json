@@ -6,6 +6,7 @@
     "key.hotbar.1": "key.keyboard.keypad.1",
     "key.inventory": "key.keyboard.i",
     "key.jump": "key.keyboard.keypad.0",
+    "key.kaboomkeybinds-gametest.long_name": "key.keyboard.f12",
     "key.othermod.example": "key.keyboard.x",
     "key.sneak": "key.keyboard.right.shift",
     "key.togglePerspective": "key.mouse.5"

@@ -3,6 +3,9 @@
 	"package": "de.kaboomstudios.kaboomkeybinds.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"KeyBindsListMixin",
+		"KeyBindsScreenMixin",
+		"KeyEntryMixin",
 		"KeyMappingMixin"
 	],
 	"injectors": {

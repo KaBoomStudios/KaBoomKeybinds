@@ -6,13 +6,18 @@
 	"description": "Automated client tests for KaBoom Keybinds. Not part of the released jar.",
 	"environment": "client",
 	"entrypoints": {
+		"client": [
+			"de.kaboomstudios.kaboomkeybinds.gametest.GameTestKeyMappings"
+		],
 		"fabric-client-gametest": [
 			"de.kaboomstudios.kaboomkeybinds.gametest.TitleScreenSmokeTest",
-			"de.kaboomstudios.kaboomkeybinds.gametest.AlternativeKeyGameTest"
+			"de.kaboomstudios.kaboomkeybinds.gametest.AlternativeKeyGameTest",
+			"de.kaboomstudios.kaboomkeybinds.gametest.ControlsMenuGameTest"
 		]
 	},
 	"depends": {
 		"kaboomkeybinds": "*",
-		"fabric-client-gametest-api-v1": "*"
+		"fabric-client-gametest-api-v1": "*",
+		"fabric-key-mapping-api-v1": "*"
 	}
 }
