@@ -1,0 +1,30 @@
+# Arbeitsanweisung fuer die Entwicklung, gehoert nicht in das veroeffentlichte Repository
+CLAUDE.md
+
+# Lokale Einstellungen, enthalten Pfade oder Zugangsdaten dieses Rechners
+gradle-local.properties
+.claude/settings.local.json
+.env
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Lokaler Test-Client (Loom runClient)
+run/
+
+# IDE
+.idea/
+*.iml
+out/
+.vscode/
+
+# Crash dumps and profiler output
+hs_err_*.log
+replay_*.log
+*.hprof
+*.jfr
+
+# macOS
+.DS_Store

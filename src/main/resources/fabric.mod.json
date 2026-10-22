@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 1,
+	"id": "kaboomkeybinds",
+	"version": "${version}",
+	"name": "KaBoom Keybinds",
+	"description": "Gives every keybind an optional second key, keyboard or mouse, bound directly in the controls menu.",
+	"authors": [
+		"KaBoom Studios"
+	],
+	"contact": {
+		"sources": "https://github.com/KaBoomStudios/KaBoomKeybinds"
+	},
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"de.kaboomstudios.kaboomkeybinds.client.KaBoomKeybindsClient"
+		]
+	},
+	"mixins": [
+		"kaboomkeybinds.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.2",
+		"java": ">=25"
+	}
+}

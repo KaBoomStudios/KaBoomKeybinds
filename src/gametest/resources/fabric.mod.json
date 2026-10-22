@@ -1,0 +1,17 @@
+{
+	"schemaVersion": 1,
+	"id": "kaboomkeybinds-gametest",
+	"version": "${version}",
+	"name": "KaBoom Keybinds Game Tests",
+	"description": "Automated client tests for KaBoom Keybinds. Not part of the released jar.",
+	"environment": "client",
+	"entrypoints": {
+		"fabric-client-gametest": [
+			"de.kaboomstudios.kaboomkeybinds.gametest.TitleScreenSmokeTest"
+		]
+	},
+	"depends": {
+		"kaboomkeybinds": "*",
+		"fabric-client-gametest-api-v1": "*"
+	}
+}

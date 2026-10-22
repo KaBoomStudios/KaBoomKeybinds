@@ -1,0 +1,5 @@
+{
+	"kaboomkeybinds.controls.primary": "Key",
+	"kaboomkeybinds.controls.alternative": "Alternative",
+	"kaboomkeybinds.controls.alternative.narration": "Alternative key for %s"
+}
