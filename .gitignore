@@ -11,8 +11,9 @@ gradle-local.properties
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
-# Lokaler Test-Client (Loom runClient)
+# Lokaler Test-Client (Loom runClient) und Log-Ausgabe von Testläufen
 run/
+logs/
 
 # IDE
 .idea/

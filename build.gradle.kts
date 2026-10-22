@@ -68,6 +68,15 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.test {
     useJUnitPlatform()
+
+    // Minecraft's logging configuration is on the test class path and writes logs/latest.log relative to the
+    // working directory. Running the tests inside the build directory keeps that output out of the project root.
+    val testWorkingDir = layout.buildDirectory.dir("test-run")
+    workingDir = testWorkingDir.get().asFile
+    doFirst {
+        testWorkingDir.get().asFile.mkdirs()
+    }
+
     testLogging {
         events("passed", "skipped", "failed")
     }
