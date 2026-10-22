@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "keys": {
+    "key.chat": "not-a-key",
+    "key.forward": "key.keyboard.up",
+    "key.hotbar.1": "key.keyboard.keypad.1",
+    "key.inventory": "key.keyboard.i",
+    "key.jump": "key.keyboard.keypad.0",
+    "key.othermod.example": "key.keyboard.x",
+    "key.sneak": "key.keyboard.right.shift",
+    "key.togglePerspective": "key.mouse.5"
+  }
+}

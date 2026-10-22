@@ -3,6 +3,7 @@
 	"package": "de.kaboomstudios.kaboomkeybinds.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"KeyMappingMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

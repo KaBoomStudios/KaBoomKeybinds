@@ -81,3 +81,20 @@ tasks.test {
         events("passed", "skipped", "failed")
     }
 }
+
+// The client game tests check that alternative keys are loaded at startup, so the test client starts with a
+// prepared file in its config directory. The file is copied before every run to undo changes made by the tests.
+// Loom applies the run directory only when the task executes, so it is taken from the run configuration here.
+// Only plain files are captured by the task action, which keeps the configuration cache happy.
+tasks.configureEach {
+    if (name == "runClientGameTest") {
+        val fixture = layout.projectDirectory.file("src/gametest/fixtures/kaboomkeybinds.json").asFile
+        val runDir = layout.projectDirectory.dir(loom.runs.getByName("clientGameTest").runDir).asFile
+        inputs.file(fixture)
+        doFirst {
+            val configDir = runDir.resolve("config")
+            configDir.mkdirs()
+            fixture.copyTo(configDir.resolve(fixture.name), overwrite = true)
+        }
+    }
+}

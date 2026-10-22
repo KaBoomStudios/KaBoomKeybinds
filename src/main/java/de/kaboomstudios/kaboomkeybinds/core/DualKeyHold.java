@@ -5,10 +5,12 @@ package de.kaboomstudios.kaboomkeybinds.core;
  * least one of them is down. Vanilla keeps a single "is down" flag per mapping, which would end the action as soon
  * as either key is released while the other is still held.
  *
- * <p>{@link #set(KeySlot, boolean)} returns the state the mapping should take: a press always yields "down", a
- * release yields "down" only while the other key is still held. Passing every press on mirrors vanilla, which calls
- * setDown(true) for every press of the key. That keeps toggle mappings (toggle sneak, toggle sprint) predictable:
- * every press of either key toggles.
+ * <p>{@link #set(KeySlot, boolean)} records the physical state of one key and returns whether the mapping should
+ * still count as held: a press always yields "down", a release yields "down" only while the other key is still held.
+ * The client layer passes every press on as a press, as vanilla does, so toggle mappings (toggle sneak, toggle
+ * sprint) toggle on every press of either key. A release is passed on only when it leaves no key held: passing it
+ * on as a release would end the action the other key still holds, passing it on as a press would flip a toggle
+ * mapping.
  *
  * <p>Minecraft resets its own flags when a screen opens or the mouse is grabbed. The client layer calls
  * {@link #releaseAll()} or {@link #set(KeySlot, boolean)} at those points so that this state never goes stale.

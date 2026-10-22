@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
@@ -60,6 +61,18 @@ class ModMetadataTest {
         assertEquals("de.kaboomstudios.kaboomkeybinds.mixin", mixinConfig.get("package").getAsString());
         assertEquals("JAVA_25", mixinConfig.get("compatibilityLevel").getAsString());
         assertTrue(mixinConfig.get("required").getAsBoolean());
+    }
+
+    @Test
+    void listedMixinClassesExist() throws IOException {
+        JsonObject mixinConfig = readJson("/kaboomkeybinds.mixins.json");
+        String mixinPackage = mixinConfig.get("package").getAsString();
+
+        assertFalse(mixinConfig.getAsJsonArray("client").isEmpty(), "the mod needs at least one mixin to work");
+        for (JsonElement mixin : mixinConfig.getAsJsonArray("client")) {
+            String className = mixinPackage + "." + mixin.getAsString();
+            assertTrue(classExists(className), "mixin class not found: " + className);
+        }
     }
 
     @Test
