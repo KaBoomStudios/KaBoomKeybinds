@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.client.KeyMapping;
+//? if <26.3
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -103,18 +104,16 @@ public abstract class KeyMappingMixin implements AlternativeKeyMapping {
     }
 
     /**
-     * When the game regains the mouse after a screen, vanilla reads the physical state of each primary keyboard key
-     * from the window. The alternative key is read the same way, and the mapping counts as down when either key is.
+     * When the game regains the mouse after a screen, vanilla reads the physical state of each primary keyboard key.
+     * The alternative key is read the same way, and the mapping counts as down when either key is.
      * Vanilla skips mappings whose primary key is not a keyboard key, so an alternative keyboard key of such a
      * mapping is not restored either. It works again with the next press.
      */
     @WrapOperation(method = "setAll", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/KeyMapping;setDown(Z)V"))
     private static void restoreBothKeys(KeyMapping mapping, boolean primaryDown, Operation<Void> original) {
         KeyMappingMixin self = (KeyMappingMixin) (Object) mapping;
-        InputConstants.Key alternative = self.kaboomkeybinds$alternativeKey;
         boolean alternativeDown = self.kaboomkeybinds$hasAlternativeKey()
-                && alternative.getType() == InputConstants.Type.KEYSYM
-                && InputConstants.isKeyDown(Minecraft.getInstance().getWindow(), alternative.getValue());
+                && kaboomkeybinds$isKeyboardKeyDown(self.kaboomkeybinds$alternativeKey);
         self.kaboomkeybinds$hold.set(KeySlot.PRIMARY, primaryDown);
         self.kaboomkeybinds$hold.set(KeySlot.SECONDARY, alternativeDown);
         original.call(mapping, primaryDown || alternativeDown);
@@ -200,6 +199,17 @@ public abstract class KeyMappingMixin implements AlternativeKeyMapping {
         return new KeyPair<>(
                 InputConstants.UNKNOWN.equals(this.key) ? null : this.key,
                 this.kaboomkeybinds$hasAlternativeKey() ? this.kaboomkeybinds$alternativeKey : null);
+    }
+
+    /** Reads the physical state of a keyboard key the way {@code setAll} reads primary keys. Mouse buttons are not read. */
+    @Unique
+    private static boolean kaboomkeybinds$isKeyboardKeyDown(InputConstants.Key key) {
+        //? if >=26.3 {
+        /*return key.getType() == InputConstants.Type.KEYBOARD && InputConstants.isKeyDown(key.getValue());
+        *///?} else {
+        return key.getType() == InputConstants.Type.KEYSYM
+                && InputConstants.isKeyDown(Minecraft.getInstance().getWindow(), key.getValue());
+        //?}
     }
 
     @Unique

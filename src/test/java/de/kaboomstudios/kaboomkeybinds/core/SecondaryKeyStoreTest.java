@@ -268,6 +268,105 @@ class SecondaryKeyStoreTest {
     }
 
     @Test
+    void fileWithoutKeyNamesNamesNoSchemeAndIsWrittenWithoutOne() throws IOException {
+        writeFile("{\"version\": 1, \"keys\": {\"key.jump\": \"key.keyboard.v\"}}");
+
+        SecondaryKeyStore store = SecondaryKeyStore.load(file());
+        assertEquals(Optional.empty(), store.keyNames());
+        store.set("key.sneak", "key.keyboard.c");
+        store.save();
+
+        assertFalse(JsonParser.parseString(readFile()).getAsJsonObject().has("keyNames"),
+                "files stay in the format older builds wrote until a migration runs");
+    }
+
+    @Test
+    void migrationRenamesOldKeyNamesOnce() {
+        SecondaryKeyStore store = SecondaryKeyStore.empty(file());
+        store.set("key.jump", "key.keyboard.old.a");
+        store.set("key.sneak", "key.keyboard.old.b");
+        store.set("key.drop", "key.keyboard.q");
+        Map<String, String> renames = Map.of("key.keyboard.old.a", "key.keyboard.new.a",
+                "key.keyboard.old.b", "key.keyboard.new.b");
+
+        assertTrue(store.migrateKeyNames("scheme", renames));
+
+        assertEquals(Map.of("key.jump", "key.keyboard.new.a", "key.sneak", "key.keyboard.new.b",
+                "key.drop", "key.keyboard.q"), store.all());
+        assertEquals(Optional.of("scheme"), store.keyNames());
+
+        // A name bound after the migration follows the new scheme, even where it equals an old name.
+        store.set("key.attack", "key.keyboard.old.a");
+        assertFalse(store.migrateKeyNames("scheme", renames));
+        assertEquals(Optional.of("key.keyboard.old.a"), store.get("key.attack"));
+    }
+
+    @Test
+    void migrationWithoutOldNamesOnlyRecordsTheScheme() {
+        SecondaryKeyStore store = SecondaryKeyStore.empty(file());
+        store.set("key.jump", "key.keyboard.v");
+
+        assertFalse(store.migrateKeyNames("scheme", Map.of("key.keyboard.old", "key.keyboard.new")));
+
+        assertEquals(Optional.of("key.keyboard.v"), store.get("key.jump"));
+        assertEquals(Optional.of("scheme"), store.keyNames());
+    }
+
+    @Test
+    void fileThatFollowsTheSchemeIsNotRenamed() throws IOException {
+        writeFile("{\"version\": 1, \"keyNames\": \"scheme\", \"keys\": {\"key.jump\": \"key.keyboard.old\"}}");
+
+        SecondaryKeyStore store = SecondaryKeyStore.load(file());
+
+        assertEquals(Optional.of("scheme"), store.keyNames());
+        assertFalse(store.migrateKeyNames("scheme", Map.of("key.keyboard.old", "key.keyboard.new")));
+        assertEquals(Optional.of("key.keyboard.old"), store.get("key.jump"));
+    }
+
+    @Test
+    void migrationReachesTheFileWithTheNextSaveOnly() throws IOException {
+        String old = "{\"version\": 1, \"keys\": {\"key.jump\": \"key.keyboard.old\"}}";
+        writeFile(old);
+
+        SecondaryKeyStore store = SecondaryKeyStore.load(file());
+        store.migrateKeyNames("scheme", Map.of("key.keyboard.old", "key.keyboard.new"));
+        assertEquals(old, readFile(), "the migration alone does not write");
+
+        assertTrue(store.save());
+        JsonObject root = JsonParser.parseString(readFile()).getAsJsonObject();
+        assertEquals("scheme", root.get("keyNames").getAsString());
+        assertEquals("key.keyboard.new", root.getAsJsonObject("keys").get("key.jump").getAsString());
+
+        SecondaryKeyStore reloaded = SecondaryKeyStore.load(file());
+        assertEquals(Optional.of("scheme"), reloaded.keyNames());
+        assertEquals(Optional.of("key.keyboard.new"), reloaded.get("key.jump"));
+        assertFalse(Files.exists(brokenFile()));
+    }
+
+    @Test
+    void keyNamesSurviveSavesOfBuildsThatDoNotMigrate() throws IOException {
+        writeFile("{\"version\": 1, \"keyNames\": \"scheme\", \"keys\": {\"key.jump\": \"key.keyboard.v\"}}");
+
+        SecondaryKeyStore store = SecondaryKeyStore.load(file());
+        store.set("key.sneak", "key.keyboard.c");
+        store.save();
+
+        assertEquals(Optional.of("scheme"), SecondaryKeyStore.load(file()).keyNames());
+    }
+
+    @Test
+    void invalidKeyNamesAreIgnored() throws IOException {
+        writeFile("{\"version\": 1, \"keyNames\": 5, \"keys\": {\"key.jump\": \"key.keyboard.v\"}}");
+
+        SecondaryKeyStore store = SecondaryKeyStore.load(file());
+
+        assertEquals(Optional.empty(), store.keyNames());
+        assertEquals(Optional.of("key.keyboard.v"), store.get("key.jump"), "the entries are still read");
+        store.save();
+        assertFalse(Files.exists(brokenFile()), "an invalid scheme does not make the whole file broken");
+    }
+
+    @Test
     void allIsAReadOnlyView() {
         SecondaryKeyStore store = SecondaryKeyStore.empty(file());
         store.set("key.jump", "key.keyboard.v");

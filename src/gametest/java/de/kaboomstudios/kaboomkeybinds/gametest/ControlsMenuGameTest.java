@@ -41,7 +41,6 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
     private static final InputConstants.Key ESCAPE = InputConstants.getKey("key.keyboard.escape");
     private static final InputConstants.Key F12 = InputConstants.getKey("key.keyboard.f12");
     private static final InputConstants.Key MOUSE_4 = InputConstants.getKey("key.mouse.4");
-    private static final int MOUSE_4_BUTTON = 3;
 
     /** Positions of the three buttons in a row, see {@code KeyEntryMixin}. */
     private static final int PRIMARY = 0;
@@ -226,7 +225,7 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
 
     private static void checkBindingAMouseButton(ClientGameTestContext context, TestInput input) {
         clickRowButton(context, input, options -> options.keyRight, ALTERNATIVE);
-        input.pressMouse(MOUSE_4_BUTTON);
+        input.pressMouse(MOUSE_4.getValue());
         context.waitTick();
         context.runOnClient(client -> {
             KeyMapping right = client.options.keyRight;
@@ -243,7 +242,7 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
         clickRowButton(context, input, options -> options.keyRight, PRIMARY);
         context.runOnClient(client -> assertTrue(screen(client).selectedKey == client.options.keyRight,
                 "clicking the primary button starts the vanilla binding"));
-        input.pressMouse(MOUSE_4_BUTTON);
+        input.pressMouse(MOUSE_4.getValue());
         context.waitTick();
         context.runOnClient(client -> {
             KeyMapping right = client.options.keyRight;
@@ -256,7 +255,7 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
 
         // And back: binding the primary key as alternative key empties the primary slot.
         clickRowButton(context, input, options -> options.keyRight, ALTERNATIVE);
-        input.pressMouse(MOUSE_4_BUTTON);
+        input.pressMouse(MOUSE_4.getValue());
         context.waitTick();
         context.runOnClient(client -> {
             KeyMapping right = client.options.keyRight;
@@ -415,7 +414,7 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
         });
         input.setCursorPos(center[0], center[1]);
         context.waitTick();
-        input.pressMouse(0);
+        input.pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
         context.waitTick();
     }
 

@@ -36,6 +36,7 @@ import org.slf4j.Logger;
  * <pre>
  * {
  *   "version": 1,
+ *   "keyNames": "sdl",
  *   "keys": {
  *     "key.inventory": "key.mouse.5"
  *   }
@@ -44,6 +45,8 @@ import org.slf4j.Logger;
  * Entries map a key mapping name to a Minecraft key name. The store treats both as opaque strings: it keeps entries
  * for mappings that do not currently exist (for example from a mod that was removed) so they return when that mod is
  * installed again, and it leaves the meaning of a key name to the client layer, which resolves it with Minecraft.
+ * The optional {@code keyNames} entry names the key naming scheme the entries follow, see
+ * {@link #migrateKeyNames(String, Map)}. Files without it follow the scheme of Minecraft 26.2 and older.
  *
  * <p>A file that cannot be read never crashes the game. The store logs a warning, starts empty and moves the
  * unreadable file aside as {@code kaboomkeybinds.json.broken} before it writes for the first time, so nothing is lost.
@@ -58,6 +61,7 @@ public final class SecondaryKeyStore {
     public static final int FORMAT_VERSION = 1;
 
     private static final String VERSION_FIELD = "version";
+    private static final String KEY_NAMES_FIELD = "keyNames";
     private static final String KEYS_FIELD = "keys";
     private static final String TEMP_SUFFIX = ".tmp";
     private static final Logger LOGGER = KaBoomKeybinds.LOGGER;
@@ -66,6 +70,8 @@ public final class SecondaryKeyStore {
     private final Path file;
     /** Sorted so that the written file is stable and easy to compare. */
     private final SortedMap<String, String> keys = new TreeMap<>();
+    /** Key naming scheme of the entries, {@code null} when the file names none. Kept as read until a migration. */
+    private String keyNames;
     /** Set when the existing file could not be used. It is moved aside before the next save overwrites it. */
     private boolean keepExistingFileAside;
 
@@ -114,6 +120,16 @@ public final class SecondaryKeyStore {
                         + " the original is kept as {}{} on the next save", file, version.getAsInt(),
                         file.getFileName(), BROKEN_SUFFIX);
                 store.keepExistingFileAside = true;
+            }
+        }
+
+        JsonElement keyNames = object.get(KEY_NAMES_FIELD);
+        if (keyNames != null) {
+            if (isString(keyNames) && !keyNames.getAsString().isBlank()) {
+                store.keyNames = keyNames.getAsString();
+            } else {
+                LOGGER.warn("Ignoring \"{}\" entry in {}: expected the name of a key naming scheme, found {}",
+                        KEY_NAMES_FIELD, file, keyNames);
             }
         }
 
@@ -176,6 +192,43 @@ public final class SecondaryKeyStore {
         return Collections.unmodifiableMap(keys);
     }
 
+    /** The key naming scheme the entries follow, empty if the file names none. */
+    public Optional<String> keyNames() {
+        return Optional.ofNullable(keyNames);
+    }
+
+    /**
+     * Renames key names written under an older naming scheme, for game versions that gave some keys new names. Runs
+     * once per file: a store that already follows {@code scheme} is left as it is, so a name written under the new
+     * scheme is never renamed, even if it equals an old name. Afterwards the store follows {@code scheme}.
+     *
+     * <p>Nothing is written here. The new names and the scheme reach the file with the next save, so a game version
+     * that still uses the old names can go on reading the file as long as nothing is changed.
+     *
+     * @param scheme the naming scheme of the running game
+     * @param renames old key name to new key name
+     * @return whether an entry was renamed
+     */
+    public boolean migrateKeyNames(String scheme, Map<String, String> renames) {
+        Objects.requireNonNull(scheme, "scheme");
+        Objects.requireNonNull(renames, "renames");
+        if (scheme.equals(keyNames)) {
+            return false;
+        }
+        boolean renamed = false;
+        for (Map.Entry<String, String> entry : keys.entrySet()) {
+            String newName = renames.get(entry.getValue());
+            if (newName != null) {
+                LOGGER.info("Renaming alternative key {} of {} to {}, the key names changed with this game version",
+                        entry.getValue(), entry.getKey(), newName);
+                entry.setValue(newName);
+                renamed = true;
+            }
+        }
+        keyNames = scheme;
+        return renamed;
+    }
+
     /**
      * Writes the store to its file. The content goes to a temporary file first, which then replaces the target
      * atomically, so a crash while writing cannot leave a half written file behind.
@@ -211,6 +264,9 @@ public final class SecondaryKeyStore {
         keys.forEach(keysObject::addProperty);
         JsonObject root = new JsonObject();
         root.addProperty(VERSION_FIELD, FORMAT_VERSION);
+        if (keyNames != null) {
+            root.addProperty(KEY_NAMES_FIELD, keyNames);
+        }
         root.add(KEYS_FIELD, keysObject);
         return root;
     }

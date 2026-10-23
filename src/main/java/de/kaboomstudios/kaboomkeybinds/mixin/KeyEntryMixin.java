@@ -1,5 +1,6 @@
 package de.kaboomstudios.kaboomkeybinds.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -23,6 +24,7 @@ import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.options.controls.KeyBindsList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -64,11 +66,12 @@ public abstract class KeyEntryMixin extends KeyBindsList.Entry implements KeyEnt
     @Final
     private Button resetButton;
 
-    @Shadow
-    private boolean hasCollision;
-
     @Unique
     private Button kaboomkeybinds$alternativeButton;
+
+    /** Whether the alternative key conflicts with another mapping, set with the label of the alternative button. */
+    @Unique
+    private boolean kaboomkeybinds$alternativeConflict;
 
     @Unique
     private List<Button> kaboomkeybinds$children;
@@ -146,6 +149,21 @@ public abstract class KeyEntryMixin extends KeyBindsList.Entry implements KeyEnt
         }
     }
 
+    /**
+     * The stripe left of the buttons marks a conflict on either button. Vanilla draws it from its collision flag,
+     * which also decides the marker on the primary button (since 26.3 on every frame). So a conflict of the
+     * alternative key is added where the stripe reads the flag, and the flag itself is left to vanilla.
+     */
+    @ModifyExpressionValue(
+            method = "extractContent",
+            at = @At(
+                    value = "FIELD",
+                    target = "Lnet/minecraft/client/gui/screens/options/controls/KeyBindsList$KeyEntry;hasCollision:Z",
+                    opcode = Opcodes.GETFIELD))
+    private boolean markAlternativeConflictWithStripe(boolean primaryConflict) {
+        return primaryConflict || this.kaboomkeybinds$alternativeConflict;
+    }
+
     /** The alternative button follows the key button, which vanilla has positioned by now. */
     @Inject(method = "extractContent", at = @At("TAIL"))
     private void drawAlternativeButton(GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a, CallbackInfo ci) {
@@ -195,7 +213,7 @@ public abstract class KeyEntryMixin extends KeyBindsList.Entry implements KeyEnt
 
     /**
      * Label, conflict marker, tooltip and waiting marker of the alternative button, mirroring what vanilla does for
-     * the primary button in {@code refreshEntry}. A conflict of the alternative key also raises the stripe of the row.
+     * the primary button in {@code refreshEntry}. A conflict of the alternative key also shows the stripe of the row.
      */
     @Unique
     private void kaboomkeybinds$refreshAlternativeButton() {
@@ -219,12 +237,12 @@ public abstract class KeyEntryMixin extends KeyBindsList.Entry implements KeyEnt
             if (conflict) {
                 button.setMessage(ControlsMenu.markConflict(button.getMessage()));
                 button.setTooltip(ControlsMenu.conflictTooltip(otherNames));
-                this.hasCollision = true;
             }
         }
         if (!conflict) {
             button.setTooltip(null);
         }
+        this.kaboomkeybinds$alternativeConflict = conflict;
 
         if (this.kaboomkeybinds$selection().kaboomkeybinds$selectedAlternative() == this.key) {
             button.setMessage(ControlsMenu.markSelecting(button.getMessage()));

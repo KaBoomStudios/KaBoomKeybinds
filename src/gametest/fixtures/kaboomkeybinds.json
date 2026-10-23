@@ -7,8 +7,11 @@
     "key.inventory": "key.keyboard.i",
     "key.jump": "key.keyboard.keypad.0",
     "key.kaboomkeybinds-gametest.long_name": "key.keyboard.f12",
+    "key.loadToolbarActivator": "key.keyboard.menu",
     "key.othermod.example": "key.keyboard.x",
+    "key.saveToolbarActivator": "key.keyboard.world.2",
     "key.sneak": "key.keyboard.right.shift",
+    "key.spectatorOutlines": "key.keyboard.keypad.decimal",
     "key.togglePerspective": "key.mouse.5"
   }
 }

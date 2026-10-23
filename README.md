@@ -1,7 +1,7 @@
 # KaBoom Keybinds
 
-A client side Fabric mod for Minecraft Java Edition 26.2 that gives every keybind an optional second key, the way
-shooters do it. The second key can be a keyboard key or a mouse button and is bound directly in the normal controls
+A client side Fabric mod for Minecraft Java Edition 26.2 and 26.3 that gives every keybind an optional second key, the
+way shooters do it. The second key can be a keyboard key or a mouse button and is bound directly in the normal controls
 menu through a second column. Both keys trigger the action equally.
 
 ## Features
@@ -22,7 +22,7 @@ menu through a second column. Both keys trigger the action equally.
 
 ## Requirements
 
-- Minecraft Java Edition 26.2
+- Minecraft Java Edition 26.2 or 26.3, with the jar built for that version
 - Fabric Loader 0.19.5 or newer
 - Java 25 or newer (the Minecraft launcher ships a suitable runtime)
 
@@ -30,8 +30,9 @@ Fabric API is not required. It can be installed alongside, as most other mods ne
 
 ## Installation
 
-1. Install Fabric Loader for Minecraft 26.2 with the Fabric installer from https://fabricmc.net/use/installer/
-2. Copy the mod jar (`kaboomkeybinds-0.1.0+26.2.jar`) into the `mods` folder of your Minecraft installation
+1. Install Fabric Loader for your Minecraft version with the Fabric installer from https://fabricmc.net/use/installer/
+2. Copy the mod jar for that Minecraft version into the `mods` folder of your Minecraft installation. The name of the
+   jar ends with the Minecraft version, for example `kaboomkeybinds-0.1.0+26.2.jar` for 26.2
 3. Start the game with the Fabric profile
 
 The mod is client side only. Servers do not need it and players without it are not affected. It can be removed at any
@@ -69,6 +70,13 @@ for keybinds that are currently not present (for example from a mod that was rem
 that mod is installed again. A broken file does not crash the game: it is reported in the log, the alternative keys
 stay empty, and the file is moved to `kaboomkeybinds.json.broken` before the next save so nothing is lost. An entry
 with a key name Minecraft does not know is reported, left in the file and treated as empty.
+
+Minecraft 26.3 reads the keyboard through a new input library and gave three keys new names: the keypad decimal point
+(`key.keyboard.keypad.period`, before `key.keyboard.keypad.decimal`), the context menu key (`key.keyboard.application`,
+before `key.keyboard.menu`) and, on Windows, the extra key next to left shift on ISO keyboards, `<` on German ones
+(`key.keyboard.world.1`, before `key.keyboard.world.2`). The jar for 26.3 renames these entries when it loads a file
+from an older version and writes the new names with the next change, together with the entry `"keyNames": "sdl"`,
+which marks the file as converted.
 
 ## Building from source
 
@@ -109,7 +117,7 @@ commit. IntelliJ IDEA lists these tasks in the Gradle tool window under `stonecu
 ## Status
 
 Version 0.1.0 is the first release. It supports Minecraft 26.2 with Fabric Loader, in English and German. Version 1.0.0
-is in development: it adds jars for Minecraft 26.1.x and 26.3 and a release on Modrinth.
+is in development: the jar for Minecraft 26.3 is in place, a jar for 26.1.x and a release on Modrinth follow.
 
 ## Known limitations
 
@@ -121,6 +129,10 @@ is in development: it adds jars for Minecraft 26.1.x and 26.3 and a release on M
 - After a menu closes, Minecraft re-reads held keys only for keybinds whose primary key is a keyboard key, and
   restores toggled sneaking and sprinting under the same condition. A held alternative key follows that rule, so it is
   picked up again only when the primary key of its keybind is a keyboard key
+- Alternative keys carry over from 26.2 to 26.3, the three renamed keys included (see Configuration). The way back
+  does not work for those three: once the jar for 26.3 has saved the file, an older version that shares the game folder
+  no longer recognizes them and they have to be bound again there. Vanilla has the same issue with its own options
+  file. If any other alternative key from an older version does not work in 26.3, binding it again fixes it
 - In very narrow windows, names that do not fit next to the buttons are shortened with an ellipsis, and at the
   smallest row width the button labels can overflow the buttons, as they do in vanilla
 - Mods that replace the controls menu (for example Controlling) are untested. Mods that only add keybinds work, the
