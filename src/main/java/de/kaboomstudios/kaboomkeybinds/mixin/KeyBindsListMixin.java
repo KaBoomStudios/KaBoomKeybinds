@@ -18,6 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * <p>Vanilla measures the longest name while it builds the list but never uses the result and returns a fixed row
  * width. Here the row width follows the longest name and the width of the window, see {@link KeyRowLayout}. The
  * rows ask the list for their width whenever they are positioned, so the result applies to every row at once.
+ * Lists without key columns keep the vanilla width, see {@link KeyBindsListAccess#kaboomkeybinds$showsKeyColumns()}.
  */
 @Mixin(KeyBindsList.class)
 public abstract class KeyBindsListMixin extends ContainerObjectSelectionList<KeyBindsList.Entry> implements KeyBindsListAccess {
@@ -34,7 +35,9 @@ public abstract class KeyBindsListMixin extends ContainerObjectSelectionList<Key
 
     @Inject(method = "getRowWidth", at = @At("HEAD"), cancellable = true)
     private void fitTwoKeyButtons(CallbackInfoReturnable<Integer> cir) {
-        cir.setReturnValue(KeyRowLayout.rowWidth(this.maxNameWidth, this.getWidth()));
+        if (this.kaboomkeybinds$showsKeyColumns()) {
+            cir.setReturnValue(KeyRowLayout.rowWidth(this.maxNameWidth, this.getWidth()));
+        }
     }
 
     @Override

@@ -71,14 +71,42 @@ class ModMetadataTest {
 
     @Test
     void listedMixinClassesExist() throws IOException {
-        JsonObject mixinConfig = readJson("/kaboomkeybinds.mixins.json");
-        String mixinPackage = mixinConfig.get("package").getAsString();
+        for (String configName : new String[] {"/kaboomkeybinds.mixins.json", "/kaboomkeybinds.controlling.mixins.json"}) {
+            JsonObject mixinConfig = readJson(configName);
+            String mixinPackage = mixinConfig.get("package").getAsString();
 
-        assertFalse(mixinConfig.getAsJsonArray("client").isEmpty(), "the mod needs at least one mixin to work");
-        for (JsonElement mixin : mixinConfig.getAsJsonArray("client")) {
-            String className = mixinPackage + "." + mixin.getAsString();
-            assertTrue(classExists(className), "mixin class not found: " + className);
+            assertFalse(mixinConfig.getAsJsonArray("client").isEmpty(), configName + " lists no mixins");
+            for (JsonElement mixin : mixinConfig.getAsJsonArray("client")) {
+                String className = mixinPackage + "." + mixin.getAsString();
+                assertTrue(classExists(className), "mixin class not found: " + className);
+            }
         }
+    }
+
+    /**
+     * The mixins for the Controlling mod must never stop the game: they apply only when Controlling is installed (the
+     * plugin decides), and a Controlling version they no longer fit must not crash it. Mixin crashes for a failing
+     * mixin of a required configuration and for an injector that misses its required number of matches.
+     */
+    @Test
+    void controllingMixinsAreOptional() throws IOException {
+        JsonObject modJson = readJson("/fabric.mod.json");
+        boolean listed = false;
+        for (JsonElement config : modJson.getAsJsonArray("mixins")) {
+            listed |= config.getAsString().equals("kaboomkeybinds.controlling.mixins.json");
+        }
+        assertTrue(listed, "fabric.mod.json lists the Controlling mixin configuration");
+
+        JsonObject mixinConfig = readJson("/kaboomkeybinds.controlling.mixins.json");
+        assertFalse(mixinConfig.get("required").getAsBoolean(), "a failing Controlling mixin must not stop the game");
+        assertEquals(0, mixinConfig.getAsJsonObject("injectors").get("defaultRequire").getAsInt(),
+                "an injector that misses a changed Controlling must not stop the game");
+        String plugin = mixinConfig.get("plugin").getAsString();
+        assertTrue(classExists(plugin), "mixin plugin not found: " + plugin);
+        // The Controlling package lies inside the main mixin package, so checking the outer one covers both.
+        String mainMixinPackage = readJson("/kaboomkeybinds.mixins.json").get("package").getAsString();
+        assertTrue(mixinConfig.get("package").getAsString().startsWith(mainMixinPackage + "."));
+        assertFalse(plugin.startsWith(mainMixinPackage + "."), "Mixin refuses to load classes from a mixin package");
     }
 
     @Test

@@ -3,27 +3,20 @@ package de.kaboomstudios.kaboomkeybinds.mixin;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.mojang.blaze3d.platform.InputConstants;
-import de.kaboomstudios.kaboomkeybinds.client.AlternativeKeySelection;
+import de.kaboomstudios.kaboomkeybinds.client.AlternativeKeyRow;
 import de.kaboomstudios.kaboomkeybinds.client.AlternativeKeys;
-import de.kaboomstudios.kaboomkeybinds.client.ControlsMenu;
-import de.kaboomstudios.kaboomkeybinds.client.KeyBindsListAccess;
 import de.kaboomstudios.kaboomkeybinds.client.KeyEntryAccess;
 import de.kaboomstudios.kaboomkeybinds.core.ConflictRules;
-import de.kaboomstudios.kaboomkeybinds.core.KeyPair;
-import de.kaboomstudios.kaboomkeybinds.core.KeyRowLayout;
 import java.util.List;
 import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.ComponentRenderUtils;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.options.controls.KeyBindsList;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.util.FormattedCharSequence;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -36,24 +29,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Adds the alternative key button to every row of the key binds list.
- *
- * <p>A vanilla row holds the name, the key button and the reset button. The new button sits between the key
- * button and the reset button and behaves like the key button: it shows the name Minecraft gives the bound key,
- * the waiting marker while a key is being chosen and the conflict marker with a tooltip when another mapping uses
- * the same key. Both key buttons share the width the row layout assigns them, and names that do not fit next to
- * the buttons are clipped with an ellipsis instead of running into them.
+ * Adds the alternative key button to every row of the vanilla key binds list. The button itself lives in
+ * {@link AlternativeKeyRow}, which the row of the Controlling mod uses as well; this mixin connects it to the places
+ * where the vanilla row builds, lays out, draws and refreshes its buttons.
  *
  * <p>Each button marks the conflicts of its own key, following {@link ConflictRules}; the stripe at the left of the
  * buttons shows for either.
  */
 @Mixin(KeyBindsList.KeyEntry.class)
 public abstract class KeyEntryMixin extends KeyBindsList.Entry implements KeyEntryAccess {
-    /** The list this row belongs to: the field the compiler generates for the enclosing instance of the inner class. */
-    @Shadow
-    @Final
-    KeyBindsList this$0;
-
     @Shadow
     @Final
     private KeyMapping key;
@@ -62,35 +46,16 @@ public abstract class KeyEntryMixin extends KeyBindsList.Entry implements KeyEnt
     @Final
     private Button changeButton;
 
-    @Shadow
-    @Final
-    private Button resetButton;
-
     @Unique
-    private Button kaboomkeybinds$alternativeButton;
-
-    /** Whether the alternative key conflicts with another mapping, set with the label of the alternative button. */
-    @Unique
-    private boolean kaboomkeybinds$alternativeConflict;
-
-    @Unique
-    private List<Button> kaboomkeybinds$children;
+    private AlternativeKeyRow kaboomkeybinds$row;
 
     /**
      * Creates the alternative key button once the vanilla buttons exist. Vanilla refreshes the row at the end of its
-     * constructor, before this runs, so the new button is refreshed here as well.
+     * constructor, before this runs, so the new button refreshes itself when it is created.
      */
     @Inject(method = "<init>", at = @At("TAIL"))
     private void addAlternativeButton(KeyBindsList list, KeyMapping mapping, Component name, CallbackInfo ci) {
-        this.kaboomkeybinds$alternativeButton = Button.builder(ControlsMenu.alternativeLabel(mapping), button -> {
-                    this.kaboomkeybinds$selection().kaboomkeybinds$selectAlternative(mapping);
-                    list.resetMappingAndUpdateButtons();
-                })
-                .bounds(0, 0, KeyRowLayout.KEY_BUTTON_WIDTH, this.changeButton.getHeight())
-                .createNarration(defaultNarration -> ControlsMenu.alternativeNarration(mapping, name, defaultNarration))
-                .build();
-        this.kaboomkeybinds$children = List.of(this.changeButton, this.kaboomkeybinds$alternativeButton, this.resetButton);
-        this.kaboomkeybinds$refreshAlternativeButton();
+        this.kaboomkeybinds$row = new AlternativeKeyRow(list, mapping, name, this.changeButton);
     }
 
     /**
@@ -112,12 +77,9 @@ public abstract class KeyEntryMixin extends KeyBindsList.Entry implements KeyEnt
         };
     }
 
-    /** Both key buttons take the width the layout assigns to a row of this width (regular or narrow). */
     @Inject(method = "extractContent", at = @At("HEAD"))
     private void sizeKeyButtons(GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a, CallbackInfo ci) {
-        int width = KeyRowLayout.keyButtonWidth(this.getWidth());
-        this.changeButton.setWidth(width);
-        this.kaboomkeybinds$alternativeButton.setWidth(width);
+        this.kaboomkeybinds$row.sizeKeyButtons(this.getWidth());
     }
 
     /**
@@ -129,7 +91,7 @@ public abstract class KeyEntryMixin extends KeyBindsList.Entry implements KeyEnt
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/Button;setPosition(II)V", ordinal = 1),
             index = 0)
     private int moveKeyButtonLeft(int x) {
-        return x - KeyRowLayout.BUTTON_GAP - this.kaboomkeybinds$alternativeButton.getWidth();
+        return this.kaboomkeybinds$row.primaryButtonX(x);
     }
 
     /** A name that would run into the buttons is clipped with an ellipsis, as other vanilla lists do. */
@@ -141,9 +103,9 @@ public abstract class KeyEntryMixin extends KeyBindsList.Entry implements KeyEnt
                             + "Lnet/minecraft/network/chat/Component;III)V"))
     private void clipLongName(GuiGraphicsExtractor graphics, Font font, Component name, int x, int y, int color,
             Operation<Void> original) {
-        int available = this.changeButton.getX() - KeyRowLayout.NAME_TO_BUTTON_GAP - x;
-        if (font.width(name) > available) {
-            graphics.text(font, ComponentRenderUtils.clipText(name, font, available), x, y, color);
+        FormattedCharSequence clipped = this.kaboomkeybinds$row.clippedName(font, name, x);
+        if (clipped != null) {
+            graphics.text(font, clipped, x, y, color);
         } else {
             original.call(graphics, font, name, x, y, color);
         }
@@ -161,29 +123,25 @@ public abstract class KeyEntryMixin extends KeyBindsList.Entry implements KeyEnt
                     target = "Lnet/minecraft/client/gui/screens/options/controls/KeyBindsList$KeyEntry;hasCollision:Z",
                     opcode = Opcodes.GETFIELD))
     private boolean markAlternativeConflictWithStripe(boolean primaryConflict) {
-        return primaryConflict || this.kaboomkeybinds$alternativeConflict;
+        return this.kaboomkeybinds$row.showsConflictStripe(primaryConflict);
     }
 
-    /** The alternative button follows the key button, which vanilla has positioned by now. */
     @Inject(method = "extractContent", at = @At("TAIL"))
     private void drawAlternativeButton(GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a, CallbackInfo ci) {
-        Button alternative = this.kaboomkeybinds$alternativeButton;
-        alternative.setPosition(this.changeButton.getRight() + KeyRowLayout.BUTTON_GAP, this.changeButton.getY());
-        alternative.extractRenderState(graphics, mouseX, mouseY, a);
+        this.kaboomkeybinds$row.extract(graphics, mouseX, mouseY, a);
     }
 
-    /** The alternative button takes part in mouse handling and keyboard navigation between the two vanilla buttons. */
     @Inject(method = "children", at = @At("RETURN"), cancellable = true)
     private void includeAlternativeButton(CallbackInfoReturnable<List<? extends GuiEventListener>> cir) {
-        if (this.kaboomkeybinds$children != null) {
-            cir.setReturnValue(this.kaboomkeybinds$children);
+        if (this.kaboomkeybinds$row != null) {
+            cir.setReturnValue(this.kaboomkeybinds$row.withButton(cir.getReturnValue()));
         }
     }
 
     @Inject(method = "narratables", at = @At("RETURN"), cancellable = true)
     private void narrateAlternativeButton(CallbackInfoReturnable<List<? extends NarratableEntry>> cir) {
-        if (this.kaboomkeybinds$children != null) {
-            cir.setReturnValue(this.kaboomkeybinds$children);
+        if (this.kaboomkeybinds$row != null) {
+            cir.setReturnValue(this.kaboomkeybinds$row.withNarratedButton(cir.getReturnValue()));
         }
     }
 
@@ -206,52 +164,9 @@ public abstract class KeyEntryMixin extends KeyBindsList.Entry implements KeyEnt
     /** Runs after every vanilla refresh. Skipped during the vanilla constructor, when the button does not exist yet. */
     @Inject(method = "refreshEntry", at = @At("TAIL"))
     private void refreshAlternativeButton(CallbackInfo ci) {
-        if (this.kaboomkeybinds$alternativeButton != null) {
-            this.kaboomkeybinds$refreshAlternativeButton();
+        if (this.kaboomkeybinds$row != null) {
+            this.kaboomkeybinds$row.refresh();
         }
-    }
-
-    /**
-     * Label, conflict marker, tooltip and waiting marker of the alternative button, mirroring what vanilla does for
-     * the primary button in {@code refreshEntry}. A conflict of the alternative key also shows the stripe of the row.
-     */
-    @Unique
-    private void kaboomkeybinds$refreshAlternativeButton() {
-        Button button = this.kaboomkeybinds$alternativeButton;
-        InputConstants.Key alternative = AlternativeKeys.get(this.key);
-        button.setMessage(alternative.getDisplayName());
-
-        boolean conflict = false;
-        if (!InputConstants.UNKNOWN.equals(alternative)) {
-            KeyPair<InputConstants.Key> keys = AlternativeKeys.keys(this.key);
-            MutableComponent otherNames = Component.empty();
-            for (KeyMapping other : Minecraft.getInstance().options.keyMappings) {
-                if (other != this.key && ConflictRules.secondaryConflictShown(keys, AlternativeKeys.keys(other))) {
-                    if (conflict) {
-                        otherNames.append(", ");
-                    }
-                    conflict = true;
-                    otherNames.append(Component.translatable(other.getName()));
-                }
-            }
-            if (conflict) {
-                button.setMessage(ControlsMenu.markConflict(button.getMessage()));
-                button.setTooltip(ControlsMenu.conflictTooltip(otherNames));
-            }
-        }
-        if (!conflict) {
-            button.setTooltip(null);
-        }
-        this.kaboomkeybinds$alternativeConflict = conflict;
-
-        if (this.kaboomkeybinds$selection().kaboomkeybinds$selectedAlternative() == this.key) {
-            button.setMessage(ControlsMenu.markSelecting(button.getMessage()));
-        }
-    }
-
-    @Unique
-    private AlternativeKeySelection kaboomkeybinds$selection() {
-        return (AlternativeKeySelection) ((KeyBindsListAccess) this.this$0).kaboomkeybinds$screen();
     }
 
     @Override
@@ -261,6 +176,6 @@ public abstract class KeyEntryMixin extends KeyBindsList.Entry implements KeyEnt
 
     @Override
     public Button kaboomkeybinds$alternativeButton() {
-        return this.kaboomkeybinds$alternativeButton;
+        return this.kaboomkeybinds$row.button();
     }
 }

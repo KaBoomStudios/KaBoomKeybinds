@@ -16,6 +16,8 @@ controls menu through a second column. Both keys trigger the action equally.
   with an alternative hotbar key
 - Bound in the vanilla controls menu through a second button next to the first one. Escape clears the alternative
   key, reset clears it as well, conflicts are highlighted like in vanilla
+- Works with [Controlling](https://modrinth.com/mod/controlling), which replaces the controls menu: the alternative
+  column appears in its menu as well
 - Alternative keys are stored in their own file, the vanilla options file is never touched
 - Needs nothing but Fabric Loader. Fabric API is not required
 - English and German, following the game language
@@ -51,6 +53,13 @@ round) empties the other slot. An alternative key counts as a change, so the res
 become active as soon as one is bound. Reset restores the default key and clears the alternative key, Reset All does
 that for every keybind. Conflicts are marked like in vanilla, on whichever button holds the conflicting key, and the
 tooltip names the other keybinds that use it.
+
+With Controlling installed, its menu gets the same alternative column, with the headings between its search box and
+the list. Binding, Escape, the reset button of a row and Controlling's "Reset Keys" work as described above. The key
+button keeps Controlling's way of marking conflicts: Controlling marks every duplicate, including the ones Minecraft
+ships by default (some F3 debug keys share letters with movement keys), which vanilla leaves unmarked. Tested with
+Controlling 26.1.2.7, 26.2.4 and 26.3.4. Should a later Controlling version change its menu, the game still starts, but
+the alternative column may be missing there until this mod is updated.
 
 ## Configuration
 
@@ -112,6 +121,10 @@ A task name without a project runs the task for every version. To run it for one
 - `./gradlew :26.2:runClientGameTest` runs the automated client tests. They start the game, bind keys with simulated
   input and write screenshots of the controls menu to `versions/26.2/build/run/clientGameTest/screenshots`. That
   folder is cleared before every test run
+- `./gradlew :26.2:runClientGameTest -PwithControlling` runs the same client tests with Controlling (downloaded from
+  Modrinth's Maven repository), with screenshots in `versions/26.2/build/run/clientGameTestControlling/screenshots`.
+  `./gradlew :26.2:runClient -PwithControlling` starts the development client with Controlling. The mod itself does
+  not compile against Controlling
 
 The sources in `src/` are always in the state for one active version, which IntelliJ IDEA uses for highlighting and
 code completion. In the repository that is Minecraft 26.2. `./gradlew "Set active project to 26.3"` switches the
@@ -142,5 +155,7 @@ is in development: the jars for Minecraft 26.1.x and 26.3 are in place, a releas
   the primary keys in its options file
 - In very narrow windows, names that do not fit next to the buttons are shortened with an ellipsis, and at the
   smallest row width the button labels can overflow the buttons, as they do in vanilla
-- Mods that replace the controls menu (for example Controlling) are untested. Mods that only add keybinds work, the
+- In Controlling's menu, the filters "Show Unbound" and "Show Conflicts", the list of free keys ("Toggle Free") and
+  the search by key look at the primary keys only. A key that is bound only as alternative key is listed as free
+- Mods that replace the controls menu other than Controlling are untested. Mods that only add keybinds work, the
   automated tests cover one registered through Fabric API

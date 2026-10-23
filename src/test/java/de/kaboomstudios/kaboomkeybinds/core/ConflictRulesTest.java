@@ -60,6 +60,26 @@ class ConflictRulesTest {
     }
 
     @Test
+    void theRuleWithoutDefaultsMarksDefaultDuplicatesToo() {
+        KeyPair<String> movement = new KeyPair<>(A, null);
+        KeyPair<String> debug = new KeyPair<>(A, null);
+
+        assertTrue(ConflictRules.primaryConflict(movement, debug), "menus like Controlling show every duplicate");
+        assertTrue(ConflictRules.primaryConflict(movement, new KeyPair<>(B, A)), "including alternative keys");
+    }
+
+    @Test
+    void theRuleWithoutDefaultsLooksAtThePrimaryKeyOnly() {
+        KeyPair<String> self = new KeyPair<>(A, C);
+
+        assertFalse(ConflictRules.primaryConflict(self, new KeyPair<>(C, null)),
+                "a conflict of the alternative key belongs to the alternative button");
+        assertFalse(ConflictRules.primaryConflict(new KeyPair<>(null, A), new KeyPair<>(null, null)),
+                "an unbound primary key never conflicts");
+        assertFalse(ConflictRules.primaryConflict(self, new KeyPair<>(B, null)));
+    }
+
+    @Test
     void theAlternativeKeyIsMarkedAgainstPrimaryAndAlternativeKeys() {
         KeyPair<String> self = new KeyPair<>(B, A);
 

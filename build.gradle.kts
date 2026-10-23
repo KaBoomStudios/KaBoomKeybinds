@@ -21,8 +21,24 @@ base {
     archivesName = setting("archives_base_name")
 }
 
+// The development client and the client game tests load the Controlling mod, which replaces the controls menu, when
+// the build is called with -PwithControlling, for example "gradlew :26.2:runClientGameTest -PwithControlling".
+val withControlling = providers.gradleProperty("withControlling").isPresent
+
 repositories {
-    // Loom registers the Minecraft and Fabric repositories itself. Nothing else is needed.
+    // Loom registers the Minecraft and Fabric repositories itself. Modrinth only serves Controlling and Searchables
+    // for the game tests with Controlling.
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = uri("https://api.modrinth.com/maven")
+            }
+        }
+        filter {
+            includeGroup("maven.modrinth")
+        }
+    }
 }
 
 java {
@@ -52,6 +68,13 @@ fabricApi {
     }
 }
 
+if (withControlling) {
+    // A run folder of its own keeps the screenshots of the run without Controlling for comparison.
+    loom.runs.named("clientGameTest") {
+        runDirectory = layout.buildDirectory.dir("run/clientGameTestControlling")
+    }
+}
+
 dependencies {
     minecraft("com.mojang:minecraft:$minecraftVersion")
     implementation("net.fabricmc:fabric-loader:${setting("loader_version")}")
@@ -61,6 +84,13 @@ dependencies {
     // source set compiles against it for the client game test framework.
     runtimeOnly("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
     "gametestImplementation"("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
+
+    // The mod does not compile against Controlling: its mixins name Controlling's classes as strings. Controlling
+    // and Searchables, which Controlling needs, are only put into the development and game test clients on request.
+    if (withControlling) {
+        runtimeOnly("maven.modrinth:controlling:${setting("controlling_version")}")
+        runtimeOnly("maven.modrinth:searchables:${setting("searchables_version")}")
+    }
 
     testImplementation(platform("org.junit:junit-bom:${setting("junit_version")}"))
     testImplementation("org.junit.jupiter:junit-jupiter")

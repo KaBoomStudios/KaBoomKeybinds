@@ -17,7 +17,8 @@
 		]
 	},
 	"mixins": [
-		"kaboomkeybinds.mixins.json"
+		"kaboomkeybinds.mixins.json",
+		"kaboomkeybinds.controlling.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=0.19.5",

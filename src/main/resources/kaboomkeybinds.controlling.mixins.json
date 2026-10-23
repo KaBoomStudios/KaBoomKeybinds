@@ -1,0 +1,18 @@
+{
+	"required": false,
+	"package": "de.kaboomstudios.kaboomkeybinds.mixin.controlling",
+	"plugin": "de.kaboomstudios.kaboomkeybinds.client.ControllingMixinPlugin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"ControllingFreeKeysListMixin",
+		"ControllingKeyBindsScreenMixin",
+		"ControllingKeyEntryMixin",
+		"ControllingPlatformHelperMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

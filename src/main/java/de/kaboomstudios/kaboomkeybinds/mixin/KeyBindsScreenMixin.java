@@ -6,6 +6,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import de.kaboomstudios.kaboomkeybinds.client.AlternativeKeySelection;
 import de.kaboomstudios.kaboomkeybinds.client.AlternativeKeys;
 import de.kaboomstudios.kaboomkeybinds.client.ControlsMenu;
+import de.kaboomstudios.kaboomkeybinds.client.KeyBindsListAccess;
 import de.kaboomstudios.kaboomkeybinds.core.KeyRowLayout;
 import java.util.Arrays;
 import net.minecraft.client.KeyMapping;
@@ -122,10 +123,13 @@ public abstract class KeyBindsScreenMixin extends OptionsSubScreen implements Al
         };
     }
 
-    /** Draws the column headings centred above the two key buttons, in the line the larger header provides. */
+    /**
+     * Draws the column headings centred above the two key buttons, in the line the larger header provides. Lists
+     * without key columns, which the Controlling mod shows in the same screen, get no headings.
+     */
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void drawColumnHeadings(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a, CallbackInfo ci) {
-        if (this.keyBindsList == null) {
+        if (this.keyBindsList == null || !((KeyBindsListAccess) this.keyBindsList).kaboomkeybinds$showsKeyColumns()) {
             return;
         }
         int buttonWidth = KeyRowLayout.keyButtonWidth(this.keyBindsList.getRowWidth());

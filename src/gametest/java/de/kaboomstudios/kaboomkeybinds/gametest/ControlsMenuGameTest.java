@@ -6,6 +6,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import de.kaboomstudios.kaboomkeybinds.client.AlternativeKeySelection;
 import de.kaboomstudios.kaboomkeybinds.client.AlternativeKeys;
+import de.kaboomstudios.kaboomkeybinds.client.ControlsMenu;
 import de.kaboomstudios.kaboomkeybinds.client.KeyEntryAccess;
 import de.kaboomstudios.kaboomkeybinds.core.KeyRowLayout;
 import java.io.IOException;
@@ -18,11 +19,13 @@ import java.util.function.Function;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.TestInput;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.layouts.HeaderAndFooterLayout;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.options.controls.KeyBindsList;
 import net.minecraft.client.gui.screens.options.controls.KeyBindsScreen;
@@ -33,9 +36,18 @@ import net.minecraft.network.chat.contents.TranslatableContents;
  * the mouse, Escape, conflicts, the one key per mapping rule, the reset buttons, and the row layout. Finally takes
  * screenshots of the menu in both languages at several GUI scales and window sizes for the layout review.
  *
+ * <p>The build runs the test a second time with the Controlling mod on request, which replaces the menu with its own
+ * screen, list and rows. The same checks apply there, except where Controlling behaves differently on its own: it
+ * focuses its search box when the menu opens, marks every duplicate primary key including the defaults Minecraft
+ * ships, asks before "Reset Keys" and updates that button only when the screen is laid out again.
+ *
  * <p>Runs after {@link AlternativeKeyGameTest}, which leaves the alternative keys of the prepared file in place.
  */
 public final class ControlsMenuGameTest implements FabricClientGameTest {
+    private static final boolean CONTROLLING = FabricLoader.getInstance().isModLoaded("controlling");
+    /** The header height Controlling sets for its title and search box. */
+    private static final int CONTROLLING_HEADER_HEIGHT = 48;
+
     private static final InputConstants.Key KEYPAD_4 = InputConstants.getKey("key.keyboard.keypad.4");
     private static final InputConstants.Key S = InputConstants.getKey("key.keyboard.s");
     private static final InputConstants.Key ESCAPE = InputConstants.getKey("key.keyboard.escape");
@@ -71,8 +83,8 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
             openKeyBinds(context);
             checkRows(context);
             checkBindingAKey(context, input);
-            checkConflictMarkers(context, input);
-            checkEscapeClears(context, input);
+            boolean backMarkedBefore = checkConflictMarkers(context, input);
+            checkEscapeClears(context, input, backMarkedBefore);
             checkBindingAMouseButton(context, input);
             checkOneKeyPerMapping(context, input);
             checkRowReset(context, input);
@@ -86,20 +98,41 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
         }
     }
 
+    /**
+     * Opens the menu the way the game does. Controlling swaps in its own screen and focuses its search box, whose
+     * suggestions cover the first rows; Escape leaves the search box as a player would, without closing the menu.
+     */
     private static void openKeyBinds(ClientGameTestContext context) {
         context.setScreen(() -> new KeyBindsScreen(new TitleScreen(), Minecraft.getInstance().options));
         context.waitForScreen(KeyBindsScreen.class);
         context.waitTicks(2);
+        if (CONTROLLING) {
+            context.getInput().pressKey(ESCAPE);
+            context.waitTick();
+            context.runOnClient(client -> assertTrue(ClientScreens.current(client) instanceof KeyBindsScreen,
+                    "Escape in Controlling's search box keeps the menu open"));
+        }
     }
 
     private static void checkRows(ClientGameTestContext context) {
         context.runOnClient(client -> {
             KeyBindsList list = list(client);
+            assertEquals(CONTROLLING ? "com.blamejared.controlling.client.NewKeyBindsList" : KeyBindsList.class.getName(),
+                    list.getClass().getName(), "the list of the menu under test");
             assertTrue(list.getRowWidth() >= KeyRowLayout.VANILLA_ROW_WIDTH, "rows are at least as wide as in vanilla");
             assertTrue(list.getRowWidth() + KeyRowLayout.LIST_MARGIN <= list.getWidth(), "rows leave room for the scrollbar");
+            assertEquals((CONTROLLING ? CONTROLLING_HEADER_HEIGHT : HeaderAndFooterLayout.DEFAULT_HEADER_AND_FOOTER_HEIGHT)
+                    + ControlsMenu.HEADING_LINE_HEIGHT, list.getY(), "the header has a line for the column headings");
 
             int rows = 0;
             for (KeyBindsList.Entry entry : list.children()) {
+                if (!(entry instanceof KeyEntryAccess)) {
+                    // Category rows hold a text widget. Every row with buttons must have been extended.
+                    for (GuiEventListener child : entry.children()) {
+                        assertTrue(!(child instanceof Button), "a row with key buttons lacks the alternative button: "
+                                + entry.getClass().getName());
+                    }
+                }
                 if (entry instanceof KeyEntryAccess row) {
                     rows++;
                     List<? extends GuiEventListener> children = entry.children();
@@ -114,7 +147,9 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
                                     + ", label: " + label);
                 }
             }
-            assertEquals(client.options.keyMappings.length, rows, "one row per key mapping");
+            // Controlling hides categories whose name ends in ".hidden", vanilla shows every mapping.
+            assertTrue(CONTROLLING ? rows > 0 : rows == client.options.keyMappings.length,
+                    "one row per key mapping, found " + rows);
 
             KeyMapping longName = Objects.requireNonNull(KeyMapping.get(GameTestKeyMappings.LONG_NAME),
                     "the game test key mapping is registered");
@@ -175,7 +210,23 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
         });
     }
 
-    private static void checkConflictMarkers(ClientGameTestContext context, TestInput input) {
+    /**
+     * Checks the markers for conflicts of alternative keys. The primary keys of key.left (A), key.right (D) and
+     * key.back (S) are defaults that some F3 debug keys share; vanilla hides such duplicates, Controlling marks them.
+     * Either way the markers of the primary buttons must not change for a conflict of an alternative key.
+     *
+     * @return whether the primary button of key.back was marked before its key became an alternative key elsewhere
+     */
+    private static boolean checkConflictMarkers(ClientGameTestContext context, TestInput input) {
+        boolean[] primaryMarked = context.computeOnClient(client -> new boolean[] {
+                conflictMarked(client, client.options.keyLeft, PRIMARY),
+                conflictMarked(client, client.options.keyRight, PRIMARY),
+                conflictMarked(client, client.options.keyDown, PRIMARY)});
+        if (!CONTROLLING) {
+            assertTrue(!primaryMarked[0] && !primaryMarked[1] && !primaryMarked[2],
+                    "vanilla hides duplicates of two default keys");
+        }
+
         // Alternative key against alternative key: key.right gets the same key as key.left.
         clickRowButton(context, input, options -> options.keyRight, ALTERNATIVE);
         input.pressKey(KEYPAD_4);
@@ -184,9 +235,9 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
             Options options = client.options;
             assertConflict(client, options.keyLeft, ALTERNATIVE, true, "key.left alternative conflicts with key.right");
             assertConflict(client, options.keyRight, ALTERNATIVE, true, "key.right alternative conflicts with key.left");
-            assertConflict(client, options.keyLeft, PRIMARY, false,
+            assertConflict(client, options.keyLeft, PRIMARY, primaryMarked[0],
                     "the primary button is not marked for a conflict of the alternative key");
-            assertConflict(client, options.keyRight, PRIMARY, false,
+            assertConflict(client, options.keyRight, PRIMARY, primaryMarked[1],
                     "the primary button is not marked for a conflict of the alternative key");
         });
         context.takeScreenshot("controls-conflict-alternative-keys");
@@ -205,9 +256,10 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
             assertConflict(client, options.keyDown, ALTERNATIVE, false, "an unbound alternative key never conflicts");
         });
         context.takeScreenshot("controls-conflict-primary-and-alternative");
+        return primaryMarked[2];
     }
 
-    private static void checkEscapeClears(ClientGameTestContext context, TestInput input) {
+    private static void checkEscapeClears(ClientGameTestContext context, TestInput input, boolean backMarkedBefore) {
         clickRowButton(context, input, options -> options.keyLeft, ALTERNATIVE);
         input.pressKey(ESCAPE);
         context.waitTick();
@@ -219,7 +271,7 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
             assertEquals(null, storedKeyName("key.left"), "the entry is removed from the file");
             assertEquals(InputConstants.UNKNOWN.getDisplayName().getString(),
                     button(client, left, ALTERNATIVE).getMessage().getString(), "the button shows the unbound state");
-            assertConflict(client, client.options.keyDown, PRIMARY, false, "the conflict on key.back is gone");
+            assertConflict(client, client.options.keyDown, PRIMARY, backMarkedBefore, "the conflict on key.back is gone");
         });
     }
 
@@ -237,7 +289,31 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
         });
     }
 
+    /**
+     * One key never sits on both slots of a mapping. Primary keys are bound once with the keyboard and once with the
+     * mouse, because the two take different ways: vanilla handles both in its screen, Controlling binds keyboard keys
+     * through a helper of its own.
+     */
     private static void checkOneKeyPerMapping(ClientGameTestContext context, TestInput input) {
+        clickRowButton(context, input, options -> options.keyRight, ALTERNATIVE);
+        input.pressKey(KEYPAD_4);
+        context.waitTick();
+        clickRowButton(context, input, options -> options.keyRight, PRIMARY);
+        input.pressKey(KEYPAD_4);
+        context.waitTick();
+        context.runOnClient(client -> {
+            KeyMapping right = client.options.keyRight;
+            assertEquals(KEYPAD_4, AlternativeKeys.keys(right).primary(), "the typed key is the primary key now");
+            assertEquals(InputConstants.UNKNOWN, AlternativeKeys.get(right), "the alternative slot was cleared");
+            assertEquals(null, storedKeyName("key.right"), "the file no longer holds the key");
+        });
+
+        clickRowButton(context, input, options -> options.keyRight, ALTERNATIVE);
+        input.pressMouse(MOUSE_4.getValue());
+        context.waitTick();
+        context.runOnClient(client -> assertEquals(MOUSE_4, AlternativeKeys.get(client.options.keyRight),
+                "the mouse button is the alternative key"));
+
         // Binding the alternative key as primary key moves it: the alternative slot becomes empty.
         clickRowButton(context, input, options -> options.keyRight, PRIMARY);
         context.runOnClient(client -> assertTrue(screen(client).selectedKey == client.options.keyRight,
@@ -284,10 +360,16 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
             list(client).refreshEntries();
         });
         context.waitTicks(2);
-        context.runOnClient(client -> assertTrue(resetAllButton(client).active,
-                "Reset All is active while alternative keys are bound"));
+        if (!CONTROLLING) {
+            context.runOnClient(client -> assertTrue(resetAllButton(client).active,
+                    "Reset All is active while alternative keys are bound"));
+        }
 
         context.clickScreenButton("controls.resetAll");
+        if (CONTROLLING) {
+            context.waitTick();
+            context.clickScreenButton("options.confirmReset");
+        }
         context.waitTicks(2);
         context.runOnClient(client -> {
             for (KeyMapping mapping : client.options.keyMappings) {
@@ -298,7 +380,7 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
             assertEquals(null, storedKeyName("key.jump"), "entries of present mappings are removed");
             assertEquals(null, storedKeyName("key.chat"), "an unreadable entry of a present mapping is removed as well");
             assertEquals("key.keyboard.x", storedKeyName("key.othermod.example"), "entries of absent mappings are kept");
-            assertTrue(!resetAllButton(client).active, "Reset All is inactive when everything is default");
+            assertTrue(CONTROLLING || !resetAllButton(client).active, "Reset All is inactive when everything is default");
         });
     }
 
@@ -330,7 +412,21 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
                         "the row fits the window for " + shot.name());
             });
             context.takeScreenshot(shot.name());
+            if (CONTROLLING && shot.name().equals("controls-en-720p-scale2")) {
+                checkControllingFreeKeys(context);
+            }
         }
+    }
+
+    /** Controlling's list of free keys shows keys instead of mappings: no headings, no wider rows. */
+    private static void checkControllingFreeKeys(ClientGameTestContext context) {
+        context.clickScreenButton("options.toggleFree");
+        context.waitTicks(2);
+        context.runOnClient(client -> assertEquals(KeyRowLayout.VANILLA_ROW_WIDTH, list(client).getRowWidth(),
+                "the list of free keys keeps its row width"));
+        context.takeScreenshot("controls-controlling-free-keys");
+        context.clickScreenButton("options.toggleFree");
+        context.waitTicks(2);
     }
 
     /** Switches the game language the way the language screen does and waits for the resource reload. */
@@ -419,8 +515,11 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
     }
 
     private static void assertConflict(Minecraft client, KeyMapping mapping, int index, boolean expected, String message) {
-        boolean marked = button(client, mapping, index).getMessage().getString().startsWith("[ ");
-        assertEquals(expected, marked, message);
+        assertEquals(expected, conflictMarked(client, mapping, index), message);
+    }
+
+    private static boolean conflictMarked(Minecraft client, KeyMapping mapping, int index) {
+        return button(client, mapping, index).getMessage().getString().startsWith("[ ");
     }
 
     private static String storedKeyName(String mappingName) {

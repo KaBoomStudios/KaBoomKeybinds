@@ -10,6 +10,9 @@ package de.kaboomstudios.kaboomkeybinds.core;
  *
  * <p>Alternative keys have no default, so a conflict with an alternative key is always shown, on both buttons
  * involved. The rules work per slot: each button of a row marks the conflicts of its own key.
+ *
+ * <p>Menus that replace the vanilla one may mark every duplicate, defaults included. The Controlling mod does, and its
+ * primary button keeps that rule, extended by the alternative keys of the other mappings.
  */
 public final class ConflictRules {
     private ConflictRules() {
@@ -24,13 +27,21 @@ public final class ConflictRules {
      * @param otherDefault the default primary key of the other mapping
      */
     public static <K> boolean primaryConflictShown(KeyPair<K> self, K selfDefault, KeyPair<K> other, K otherDefault) {
-        K key = self.primary();
-        if (key == null || !other.contains(key)) {
+        if (!primaryConflict(self, other)) {
             return false;
         }
+        K key = self.primary();
         boolean selfAtDefault = key.equals(selfDefault);
         boolean otherAtDefault = key.equals(other.primary()) && key.equals(otherDefault);
         return !(selfAtDefault && otherAtDefault);
+    }
+
+    /**
+     * Whether the primary key of {@code self} is one of the keys of {@code other}, whatever their defaults are. This is
+     * the rule for menus that mark every duplicate.
+     */
+    public static <K> boolean primaryConflict(KeyPair<K> self, KeyPair<K> other) {
+        return self.primary() != null && other.contains(self.primary());
     }
 
     /** Whether the alternative key of {@code self} conflicts with a key of {@code other}. Always shown when it does. */
