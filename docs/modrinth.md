@@ -70,7 +70,6 @@ KaBoom Keybinds gives every keybind an optional second key, the way shooters do 
 - Conflicts are marked like in vanilla, on whichever button holds the conflicting key
 - Works with [Controlling](https://modrinth.com/mod/controlling): its controls menu gets the alternative column as well
 - Nothing changes until you bind an alternative key. The vanilla options file is never touched, so removing the mod leaves your controls as they were
-- Needs nothing but Fabric Loader. Fabric API is not required
 - English and German, following the game language
 
 ## How to use
@@ -82,10 +81,11 @@ A key can only sit in one slot of a keybind: binding the alternative key as the 
 ## Installation
 
 1. Install Fabric Loader for your Minecraft version with the Fabric installer
-2. Download the jar for your Minecraft version from the Versions tab and put it into the mods folder
-3. Start the game with the Fabric profile
+2. Put [Fabric API](https://modrinth.com/mod/fabric-api) for your Minecraft version into the mods folder, unless it is already there
+3. Download the jar for your Minecraft version from the Versions tab and put it into the mods folder as well
+4. Start the game with the Fabric profile
 
-Supported are Minecraft 26.1, 26.1.1 and 26.1.2 (one jar for all three), 26.2 and 26.3, with Fabric Loader 0.19.5 or newer. The mod is client side only: it works in singleplayer and on any server, and servers do not need it.
+Supported are Minecraft 26.1, 26.1.1 and 26.1.2 (one jar for all three), 26.2 and 26.3, with Fabric Loader 0.19.5 or newer and Fabric API. The mod is client side only: it works in singleplayer and on any server, and servers do not need it.
 
 ## Configuration
 
@@ -122,10 +122,12 @@ One Modrinth version per jar. The jars are built with `./gradlew buildAndCollect
 | Channel        | Release                              | Release                            | Release                            |
 | Loaders        | Fabric                               | Fabric                             | Fabric                             |
 | Game versions  | 26.1, 26.1.1, 26.1.2                 | 26.2                               | 26.3                               |
-| Dependencies   | Controlling, optional                | Controlling, optional              | Controlling, optional              |
+| Dependencies   | Fabric API, required                 | Fabric API, required               | Fabric API, required               |
+|                | Controlling, optional                | Controlling, optional              | Controlling, optional              |
 
-Dependencies: there are no required ones (Content Rules 5.6). Fabric API must not be listed as required. Controlling
-is listed as optional because the mod supports its menu, without a specific version. The sources jar
+Dependencies (Content Rules 5.6): Fabric API is required, because Fabric Loader alone does not load the language files
+of mods. Without it the controls menu shows raw translation keys, and the jar declares it in `fabric.mod.json`.
+Controlling is listed as optional because the mod supports its menu. Neither needs a specific version. The sources jar
 (`versions/<version>/build/libs/kaboomkeybinds-1.0.0+<version>-sources.jar`) may be added as an additional file
 (Content Rules 5.7), but it is not needed.
 
@@ -140,6 +142,7 @@ First public release.
 - Support for the controls menu of Controlling
 - Shares the alternative key file with Minecraft 26.3 in both directions, including the three keys that 26.3 renamed
 - English and German
+- Requires Fabric Loader 0.19.5 or newer and Fabric API
 - One jar for Minecraft 26.1, 26.1.1 and 26.1.2. In these versions, "Toggle Fullscreen" and "Take Screenshot" react to keyboard keys only
 ~~~~
 
@@ -154,6 +157,7 @@ First public release.
 - Support for the controls menu of Controlling
 - Shares the alternative key file with Minecraft 26.3 in both directions, including the three keys that 26.3 renamed
 - English and German
+- Requires Fabric Loader 0.19.5 or newer and Fabric API
 ~~~~
 
 ### Changelog for 26.3
@@ -167,4 +171,5 @@ First public release.
 - Support for the controls menu of Controlling
 - Reads alternative key files from older Minecraft versions and converts the three keys that 26.3 renamed (keypad decimal point, context menu key, the extra key next to left shift on ISO keyboards), and older versions convert them back
 - English and German
+- Requires Fabric Loader 0.19.5 or newer and Fabric API
 ~~~~

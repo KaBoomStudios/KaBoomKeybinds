@@ -19,7 +19,6 @@ controls menu through a second column. Both keys trigger the action equally.
 - Works with [Controlling](https://modrinth.com/mod/controlling), which replaces the controls menu: the alternative
   column appears in its menu as well
 - Alternative keys are stored in their own file, the vanilla options file is never touched
-- Needs nothing but Fabric Loader. Fabric API is not required
 - English and German, following the game language
 
 ## Requirements
@@ -27,15 +26,17 @@ controls menu through a second column. Both keys trigger the action equally.
 - Minecraft Java Edition 26.1, 26.1.1, 26.1.2, 26.2 or 26.3, with the jar built for that version. The jar for 26.1.2
   covers 26.1 and 26.1.1 as well
 - Fabric Loader 0.19.5 or newer
+- [Fabric API](https://modrinth.com/mod/fabric-api) for that Minecraft version, any release. Fabric Loader alone does
+  not load the language files of mods, Fabric API does
 - Java 25 or newer (the Minecraft launcher ships a suitable runtime)
-
-Fabric API is not required. It can be installed alongside, as most other mods need it.
 
 ## Installation
 
 1. Install Fabric Loader for your Minecraft version with the Fabric installer from https://fabricmc.net/use/installer/
-2. Copy the mod jar for that Minecraft version into the `mods` folder of your Minecraft installation. The name of the
-   jar ends with the Minecraft version it is built for:
+2. Copy Fabric API for that Minecraft version into the `mods` folder of your Minecraft installation, unless it is
+   already there
+3. Copy the mod jar for that Minecraft version into the `mods` folder as well. The name of the jar ends with the
+   Minecraft version it is built for:
 
    | Minecraft version        | Jar                               |
    |--------------------------|-----------------------------------|
@@ -43,7 +44,7 @@ Fabric API is not required. It can be installed alongside, as most other mods ne
    | 26.2                     | `kaboomkeybinds-1.0.0+26.2.jar`   |
    | 26.3                     | `kaboomkeybinds-1.0.0+26.3.jar`   |
 
-3. Start the game with the Fabric profile
+4. Start the game with the Fabric profile
 
 The mod is client side only. Servers do not need it and players without it are not affected. It can be removed at any
 time: the vanilla controls stay as they are, and the alternative keys wait in their own file until the mod is back.
@@ -122,8 +123,8 @@ A task name without a project runs the task for every version. To run it for one
 
 - `./gradlew :26.2:build` builds and tests the jar for Minecraft 26.2, written to `versions/26.2/build/libs`
 - `./gradlew :26.2:test` runs the unit tests
-- `./gradlew :26.2:runClient` starts a development client with the mod. Fabric API is loaded there as well, so
-  keybinds of other mods can be tried. The clients of all versions share the `run` folder in the project root
+- `./gradlew :26.2:runClient` starts a development client with the mod and Fabric API. The clients of all versions
+  share the `run` folder in the project root
 - `./gradlew :26.2:runClientGameTest` runs the automated client tests. They start the game, bind keys with simulated
   input and write screenshots of the controls menu to `versions/26.2/build/run/clientGameTest/screenshots`. That
   folder is cleared before every test run

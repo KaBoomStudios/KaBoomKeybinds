@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
+import de.kaboomstudios.kaboomkeybinds.KaBoomKeybinds;
 import de.kaboomstudios.kaboomkeybinds.client.AlternativeKeySelection;
 import de.kaboomstudios.kaboomkeybinds.client.AlternativeKeys;
 import de.kaboomstudios.kaboomkeybinds.client.ControlsMenu;
@@ -12,6 +13,7 @@ import de.kaboomstudios.kaboomkeybinds.core.KeyRowLayout;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -29,12 +31,14 @@ import net.minecraft.client.gui.layouts.HeaderAndFooterLayout;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.options.controls.KeyBindsList;
 import net.minecraft.client.gui.screens.options.controls.KeyBindsScreen;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.contents.TranslatableContents;
 
 /**
  * Drives the controls menu with real mouse and keyboard input: binding an alternative key with the keyboard and
  * the mouse, Escape, conflicts, the one key per mapping rule, the reset buttons, and the row layout. Finally takes
- * screenshots of the menu in both languages at several GUI scales and window sizes for the layout review.
+ * screenshots of the menu in both languages at several GUI scales and window sizes for the layout review, checking
+ * on the way that the game has loaded the translations of the mod.
  *
  * <p>The build runs the test a second time with the Controlling mod on request, which replaces the menu with its own
  * screen, list and rows. The same checks apply there, except where Controlling behaves differently on its own: it
@@ -404,6 +408,7 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
             context.runOnClient(client -> client.options.guiScale().set(shot.guiScale()));
             context.waitTick();
             openKeyBinds(context);
+            checkModTranslations(context, shot.language());
             context.runOnClient(client -> {
                 Window window = client.getWindow();
                 assertEquals(shot.width(), window.getScreenWidth(), "window width for " + shot.name());
@@ -427,6 +432,29 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
         context.takeScreenshot("controls-controlling-free-keys");
         context.clickScreenButton("options.toggleFree");
         context.waitTicks(2);
+    }
+
+    /**
+     * The game has loaded the language file of the mod for the selected language. Fabric Loader alone does not load
+     * the resources of mods, Fabric API does; without them the headings would show their raw translation keys.
+     */
+    private static void checkModTranslations(ClientGameTestContext context, String code) {
+        String file = "assets/" + KaBoomKeybinds.MOD_ID + "/lang/" + code + ".json";
+        Path path = FabricLoader.getInstance().getModContainer(KaBoomKeybinds.MOD_ID)
+                .flatMap(mod -> mod.findPath(file))
+                .orElseThrow(() -> new AssertionError("the mod has no language file " + file));
+        JsonObject translations;
+        try {
+            translations = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
+        } catch (IOException e) {
+            throw new AssertionError("could not read " + file, e);
+        }
+        context.runOnClient(client -> {
+            for (String key : translations.keySet()) {
+                assertEquals(translations.get(key).getAsString(), Language.getInstance().getOrDefault(key),
+                        "translation of " + key + " in " + code);
+            }
+        });
     }
 
     /** Switches the game language the way the language screen does and waits for the resource reload. */

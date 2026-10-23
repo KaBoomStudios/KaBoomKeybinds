@@ -79,8 +79,9 @@ dependencies {
     minecraft("com.mojang:minecraft:$minecraftVersion")
     implementation("net.fabricmc:fabric-loader:${setting("loader_version")}")
 
-    // Fabric API is deliberately not a compile dependency of the mod: players only need Fabric Loader and this jar.
-    // It is loaded in the development client so that other mods' keybinds can be tried, and the game test
+    // Players need Fabric API, because Fabric Loader alone does not load the resources of mods: without it, the game
+    // shows the raw translation keys instead of the column headings. The code itself uses no Fabric API, so it stays
+    // off the compile class path of the mod. At runtime it is loaded in the development client, and the game test
     // source set compiles against it for the client game test framework.
     runtimeOnly("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
     "gametestImplementation"("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
