@@ -76,28 +76,40 @@ Requires an installed JDK 25. Gradle itself runs on it as well: the daemon JVM c
 `gradle/gradle-daemon-jvm.properties` make the wrapper pick an installed JDK 25 for the build, whatever Java is on the
 `PATH` or in `JAVA_HOME`. Gradle finds JDKs in the usual places (`JAVA_HOME`, IntelliJ IDEA installations, the
 locations of the operating system). If it cannot find one, point `org.gradle.java.installations.paths` in your
-personal `~/.gradle/gradle.properties` at the JDK. Run
+personal `~/.gradle/gradle.properties` at the JDK.
+
+One source tree builds a separate jar for every supported Minecraft version, using
+[Stonecutter](https://stonecutter.kikugie.dev/). Each version is a Gradle subproject in `versions/<version>/` with its
+own `gradle.properties` (the Minecraft versions the jar accepts and the Fabric API version for development). The build
+script `build.gradle.kts` and the sources in `src/` are shared. Code that differs between Minecraft versions is marked
+with Stonecutter comments such as `//? if >=26.3 {`. Run
 
 ```
-./gradlew build
+./gradlew buildAndCollect
 ```
 
-The jar is written to `build/libs`. The version carries the Minecraft version as build metadata, for example
-`kaboomkeybinds-0.1.0+26.2.jar`.
+to build and test every version and copy the jars to `build/libs/<mod version>/`. The version of each jar carries the
+Minecraft version as build metadata, for example `kaboomkeybinds-1.0.0+26.2.jar`.
 
-Useful tasks:
+A task name without a project runs the task for every version. To run it for one version, put the version in front:
 
-- `./gradlew test` runs the unit tests
-- `./gradlew runClient` starts a development client with the mod. Fabric API is loaded there as well, so keybinds of
-  other mods can be tried
-- `./gradlew runClientGameTest` runs the automated client tests. They start the game, bind keys with simulated input
-  and write screenshots of the controls menu to `build/run/clientGameTest/screenshots`. That folder is cleared before
-  every test run
+- `./gradlew :26.2:build` builds and tests the jar for Minecraft 26.2, written to `versions/26.2/build/libs`
+- `./gradlew :26.2:test` runs the unit tests
+- `./gradlew :26.2:runClient` starts a development client with the mod. Fabric API is loaded there as well, so
+  keybinds of other mods can be tried. The clients of all versions share the `run` folder in the project root
+- `./gradlew :26.2:runClientGameTest` runs the automated client tests. They start the game, bind keys with simulated
+  input and write screenshots of the controls menu to `versions/26.2/build/run/clientGameTest/screenshots`. That
+  folder is cleared before every test run
+
+The sources in `src/` are always in the state for one active version, which IntelliJ IDEA uses for highlighting and
+code completion. In the repository that is Minecraft 26.2. `./gradlew "Set active project to 26.3"` switches the
+sources to another version, `./gradlew "Reset active project"` switches them back and should be run before every
+commit. IntelliJ IDEA lists these tasks in the Gradle tool window under `stonecutter`.
 
 ## Status
 
-Version 0.1.0 is the first release. It supports Minecraft 26.2 with Fabric Loader, in English and German. Builds for
-newer Minecraft versions and a release on Modrinth are planned.
+Version 0.1.0 is the first release. It supports Minecraft 26.2 with Fabric Loader, in English and German. Version 1.0.0
+is in development: it adds jars for Minecraft 26.1.x and 26.3 and a release on Modrinth.
 
 ## Known limitations
 

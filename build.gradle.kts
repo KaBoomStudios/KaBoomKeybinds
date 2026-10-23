@@ -2,16 +2,23 @@ plugins {
     id("net.fabricmc.fabric-loom")
 }
 
-val minecraftVersion = providers.gradleProperty("minecraft_version").get()
-val fabricApiVersion = providers.gradleProperty("fabric_api_version").get()
+// This script is shared by all Minecraft versions: Stonecutter runs it once for every subproject in versions/.
+// Settings that are the same for all versions come from gradle.properties in the project root, version specific
+// ones from versions/<version>/gradle.properties. Gradle exposes the latter as project properties only, not through
+// providers.gradleProperty(), which is why all settings are read with property().
+fun setting(name: String): String = property(name).toString()
+
+val minecraftVersion = sc.current.version
+val modVersion = setting("mod_version")
+val fabricApiVersion = setting("fabric_api_version")
 
 // The Minecraft version is appended as build metadata so that jars for several game versions can live side by side,
-// for example kaboomkeybinds-0.1.0+26.2.jar next to a later kaboomkeybinds-0.1.0+26.3.jar.
-version = "${providers.gradleProperty("mod_version").get()}+$minecraftVersion"
-group = providers.gradleProperty("maven_group").get()
+// for example kaboomkeybinds-1.0.0+26.2.jar next to kaboomkeybinds-1.0.0+26.3.jar.
+version = "$modVersion+$minecraftVersion"
+group = setting("maven_group")
 
 base {
-    archivesName = providers.gradleProperty("archives_base_name")
+    archivesName = setting("archives_base_name")
 }
 
 repositories {
@@ -23,6 +30,14 @@ java {
         languageVersion = JavaLanguageVersion.of(25)
     }
     withSourcesJar()
+}
+
+loom {
+    runs.named("client") {
+        // The development clients of all Minecraft versions share one folder in the project root, so options,
+        // worlds and the alternative key file carry over when switching versions.
+        runDirectory = rootDir.resolve("run")
+    }
 }
 
 fabricApi {
@@ -39,7 +54,7 @@ fabricApi {
 
 dependencies {
     minecraft("com.mojang:minecraft:$minecraftVersion")
-    implementation("net.fabricmc:fabric-loader:${providers.gradleProperty("loader_version").get()}")
+    implementation("net.fabricmc:fabric-loader:${setting("loader_version")}")
 
     // Fabric API is deliberately not a compile dependency of the mod: players only need Fabric Loader and this jar.
     // It is loaded in the development client so that other mods' keybinds can be tried, and the game test
@@ -47,17 +62,20 @@ dependencies {
     runtimeOnly("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
     "gametestImplementation"("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
 
-    testImplementation(platform("org.junit:junit-bom:${providers.gradleProperty("junit_version").get()}"))
+    testImplementation(platform("org.junit:junit-bom:${setting("junit_version")}"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.withType<ProcessResources>().configureEach {
-    val modVersion = project.version.toString()
-    inputs.property("version", modVersion)
+    val properties = mapOf(
+        "version" to project.version.toString(),
+        "minecraft_dependency" to setting("minecraft_dependency"),
+    )
+    inputs.properties(properties)
 
     filesMatching("fabric.mod.json") {
-        expand("version" to modVersion)
+        expand(properties)
     }
 }
 
@@ -88,8 +106,8 @@ tasks.test {
 // Only plain files are captured by the task action, which keeps the configuration cache happy.
 tasks.configureEach {
     if (name == "runClientGameTest") {
-        val fixture = layout.projectDirectory.file("src/gametest/fixtures/kaboomkeybinds.json").asFile
-        val runDir = layout.projectDirectory.dir(loom.runs.getByName("clientGameTest").runDir).asFile
+        val fixture = rootDir.resolve("src/gametest/fixtures/kaboomkeybinds.json")
+        val runDir = loom.runs.getByName("clientGameTest").runDirectory.get().asFile
         inputs.file(fixture)
         doFirst {
             val configDir = runDir.resolve("config")
@@ -99,22 +117,23 @@ tasks.configureEach {
     }
 }
 
-// Gradle itself has to run on Java 25, because Loom 1.18 does not start on older Java. The daemon JVM criteria in
-// gradle/gradle-daemon-jvm.properties make Gradle pick an installed JDK 25 for its daemon, whatever Java the shell
-// or JAVA_HOME points at. The file is updated with "gradlew updateDaemonJvm". Download URLs are not generated,
-// because the build has no toolchain download repository: a JDK 25 has to be installed, and Gradle finds it through
-// its usual detection (JAVA_HOME, IntelliJ, the operating system's known locations).
-tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {
-    languageVersion = JavaLanguageVersion.of(25)
-    toolchainDownloadUrls.empty()
-}
-
 // Loom clears the game test run directory through "deleteGameTestRunDir" and hooks that task into "configureLaunch",
 // which every run task depends on. A plain "runClient" would therefore wipe the screenshots of the last game test run.
 // A clean directory is only needed before the game tests themselves, so the delete task is skipped in every other build.
+val gameTestTaskPath = "$path:runClientGameTest"
 gradle.taskGraph.whenReady {
-    val runsClientGameTests = hasTask(":runClientGameTest")
+    val runsClientGameTests = hasTask(gameTestTaskPath)
     tasks.matching { it.name == "deleteGameTestRunDir" }.configureEach {
         onlyIf("the client game tests are part of this build") { runsClientGameTests }
     }
+}
+
+// Builds and tests this version and copies its jar to build/libs/<mod version>/ in the project root, next to the jars
+// of the other Minecraft versions. Called from the project root, Gradle runs it for every version.
+tasks.register<Copy>("buildAndCollect") {
+    group = "build"
+    description = "Builds and tests this version and copies the mod jar to build/libs/$modVersion/ in the project root."
+    dependsOn(tasks.named("build"))
+    from(tasks.named<Jar>("jar").flatMap { it.archiveFile })
+    into(rootDir.resolve("build/libs/$modVersion"))
 }

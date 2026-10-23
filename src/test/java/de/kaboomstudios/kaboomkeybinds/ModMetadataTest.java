@@ -46,6 +46,8 @@ class ModMetadataTest {
         assertFalse(depends.has("fabric-api"), "players must only need Fabric Loader and this jar");
         assertTrue(depends.has("fabricloader"));
         assertTrue(depends.has("minecraft"));
+        assertFalse(depends.get("minecraft").getAsString().contains("${"),
+                "Minecraft version placeholder was not expanded");
     }
 
     @Test
