@@ -114,8 +114,23 @@ tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
 }
 
+// The license travels inside the jar. Like Fabric's example mod, the file name carries the mod name, so the license
+// files of several mods do not collide when jars are nested or merged.
+tasks.named<Jar>("jar") {
+    val suffix = "_" + setting("archives_base_name")
+    inputs.property("licenseSuffix", suffix)
+    from(rootDir.resolve("LICENSE")) {
+        rename { it + suffix }
+    }
+}
+
 tasks.test {
     useJUnitPlatform()
+
+    // ModMetadataTest compares the license named in fabric.mod.json with the LICENSE file in the project root.
+    val licenseFile = rootDir.resolve("LICENSE")
+    inputs.file(licenseFile)
+    systemProperty("kaboomkeybinds.licenseFile", licenseFile.absolutePath)
 
     // Minecraft's logging configuration is on the test class path and writes logs/latest.log relative to the
     // working directory. Running the tests inside the build directory keeps that output out of the project root.

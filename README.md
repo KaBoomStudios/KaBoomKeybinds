@@ -35,8 +35,14 @@ Fabric API is not required. It can be installed alongside, as most other mods ne
 
 1. Install Fabric Loader for your Minecraft version with the Fabric installer from https://fabricmc.net/use/installer/
 2. Copy the mod jar for that Minecraft version into the `mods` folder of your Minecraft installation. The name of the
-   jar ends with the Minecraft version, for example `kaboomkeybinds-0.1.0+26.2.jar` for 26.2. For 26.1 and 26.1.1 use
-   the jar ending in `+26.1.2`
+   jar ends with the Minecraft version it is built for:
+
+   | Minecraft version        | Jar                               |
+   |--------------------------|-----------------------------------|
+   | 26.1, 26.1.1 and 26.1.2  | `kaboomkeybinds-1.0.0+26.1.2.jar` |
+   | 26.2                     | `kaboomkeybinds-1.0.0+26.2.jar`   |
+   | 26.3                     | `kaboomkeybinds-1.0.0+26.3.jar`   |
+
 3. Start the game with the Fabric profile
 
 The mod is client side only. Servers do not need it and players without it are not affected. It can be removed at any
@@ -133,8 +139,10 @@ commit. IntelliJ IDEA lists these tasks in the Gradle tool window under `stonecu
 
 ## Status
 
-Version 0.1.0 is the first release. It supports Minecraft 26.2 with Fabric Loader, in English and German. Version 1.0.0
-is in development: the jars for Minecraft 26.1.x and 26.3 are in place, a release on Modrinth follows.
+Version 1.0.0 supports Minecraft 26.1.x, 26.2 and 26.3 with Fabric Loader, in English and German, and works with
+Controlling. It is the first public release. Version 0.1.0 was an earlier release for Minecraft 26.2 only.
+
+Bugs and suggestions are welcome in the [issue tracker](https://github.com/KaBoomStudios/KaBoomKeybinds/issues).
 
 ## Known limitations
 
@@ -159,3 +167,10 @@ is in development: the jars for Minecraft 26.1.x and 26.3 are in place, a releas
   the search by key look at the primary keys only. A key that is bound only as alternative key is listed as free
 - Mods that replace the controls menu other than Controlling are untested. Mods that only add keybinds work, the
   automated tests cover one registered through Fabric API
+
+## License
+
+The source code and the texts of KaBoom Keybinds are licensed under the [MIT License](LICENSE). The mod icon
+(`src/main/resources/assets/kaboomkeybinds/icon.png`) is not covered by that license: all rights to it are reserved by
+KaBoom Studios. The unmodified mod may be passed on with its icon, for example in a modpack. Modified versions and
+other projects need an icon of their own.

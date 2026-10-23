@@ -8,8 +8,11 @@
 		"KaBoom Studios"
 	],
 	"contact": {
-		"sources": "https://github.com/KaBoomStudios/KaBoomKeybinds"
+		"sources": "https://github.com/KaBoomStudios/KaBoomKeybinds",
+		"issues": "https://github.com/KaBoomStudios/KaBoomKeybinds/issues"
 	},
+	"license": "MIT",
+	"icon": "assets/kaboomkeybinds/icon.png",
 	"environment": "client",
 	"entrypoints": {
 		"client": [

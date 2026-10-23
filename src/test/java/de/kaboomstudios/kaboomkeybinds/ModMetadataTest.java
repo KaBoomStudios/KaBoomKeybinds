@@ -1,5 +1,6 @@
 package de.kaboomstudios.kaboomkeybinds;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -8,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -15,7 +18,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -23,6 +30,8 @@ import org.junit.jupiter.api.Test;
  * when the game is launched, so the unit tests check the processed resources instead.
  */
 class ModMetadataTest {
+    private static final byte[] PNG_SIGNATURE = {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
+
     private static JsonObject readJson(String resource) throws IOException {
         try (InputStream in = ModMetadataTest.class.getResourceAsStream(resource)) {
             assertNotNull(in, "resource missing on the test class path: " + resource);
@@ -107,6 +116,53 @@ class ModMetadataTest {
         String mainMixinPackage = readJson("/kaboomkeybinds.mixins.json").get("package").getAsString();
         assertTrue(mixinConfig.get("package").getAsString().startsWith(mainMixinPackage + "."));
         assertFalse(plugin.startsWith(mainMixinPackage + "."), "Mixin refuses to load classes from a mixin package");
+    }
+
+    /**
+     * Mod lists in the game and Modrinth show the license. The SPDX identifier in fabric.mod.json must name the license
+     * that the LICENSE file in the project root grants, which the build also puts into the jar.
+     */
+    @Test
+    void licenseMatchesLicenseFile() throws IOException {
+        JsonObject modJson = readJson("/fabric.mod.json");
+        assertEquals("MIT", modJson.get("license").getAsString());
+
+        String licenseFile = System.getProperty("kaboomkeybinds.licenseFile");
+        assertNotNull(licenseFile, "the build passes the path of the LICENSE file");
+        List<String> lines = Files.readAllLines(Path.of(licenseFile), StandardCharsets.UTF_8);
+        assertEquals("MIT License", lines.getFirst());
+        String author = modJson.getAsJsonArray("authors").get(0).getAsString();
+        assertTrue(lines.stream().anyMatch(line -> line.matches("Copyright \\(c\\) \\d{4} " + Pattern.quote(author))),
+                "the copyright line names the author from fabric.mod.json");
+    }
+
+    @Test
+    void contactLinksPointToTheRepository() throws IOException {
+        JsonObject contact = readJson("/fabric.mod.json").getAsJsonObject("contact");
+        String sources = contact.get("sources").getAsString();
+
+        assertTrue(sources.startsWith("https://github.com/"), "unexpected source link: " + sources);
+        assertEquals(sources + "/issues", contact.get("issues").getAsString());
+    }
+
+    /**
+     * Mod lists in the game show the icon. Fabric Loader expects a square PNG at the given path inside the jar and
+     * recommends a power of two for its size.
+     */
+    @Test
+    void iconIsASquarePng() throws IOException {
+        String icon = readJson("/fabric.mod.json").get("icon").getAsString();
+        byte[] data;
+        try (InputStream in = ModMetadataTest.class.getResourceAsStream("/" + icon)) {
+            assertNotNull(in, "icon missing on the test class path: " + icon);
+            data = in.readAllBytes();
+        }
+
+        assertArrayEquals(PNG_SIGNATURE, Arrays.copyOf(data, PNG_SIGNATURE.length), "icon is not a PNG file");
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(data));
+        assertNotNull(image, "icon cannot be decoded");
+        assertEquals(image.getWidth(), image.getHeight(), "icon is not square");
+        assertEquals(1, Integer.bitCount(image.getWidth()), "icon size is not a power of two: " + image.getWidth());
     }
 
     @Test
