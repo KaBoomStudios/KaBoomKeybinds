@@ -1,7 +1,7 @@
-# Arbeitsanweisung fuer die Entwicklung, gehoert nicht in das veroeffentlichte Repository
+# Working notes for development, not part of the published repository
 CLAUDE.md
 
-# Lokale Einstellungen, enthalten Pfade oder Zugangsdaten dieses Rechners
+# Local settings, they contain paths or credentials of one machine
 gradle-local.properties
 .claude/settings.local.json
 .env
@@ -11,7 +11,7 @@ gradle-local.properties
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
-# Lokaler Test-Client (Loom runClient) und Log-Ausgabe von Testläufen
+# Development client (Loom runClient) and log output of test runs
 run/
 logs/
 
