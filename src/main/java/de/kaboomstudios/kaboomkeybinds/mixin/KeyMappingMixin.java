@@ -151,12 +151,16 @@ public abstract class KeyMappingMixin implements AlternativeKeyMapping {
         }
     }
 
+    // Minecraft 26.1 has no matches(Key). Its global keys (Fullscreen, Screenshot) go through matches(KeyEvent) instead,
+    // which is covered above, so the injector only exists where its target does.
+    //? if >=26.2 {
     @Inject(method = "matches(Lcom/mojang/blaze3d/platform/InputConstants$Key;)Z", at = @At("RETURN"), cancellable = true)
     private void matchAlternativeKey(InputConstants.Key key, CallbackInfoReturnable<Boolean> cir) {
         if (!cir.getReturnValueZ() && this.kaboomkeybinds$isAlternativeKey(key)) {
             cir.setReturnValue(true);
         }
     }
+    //?}
 
     /**
      * Two mappings also conflict when a primary key equals the alternative key of the other mapping, in either

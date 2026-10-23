@@ -84,7 +84,12 @@ public final class AlternativeKeyGameTest implements FabricClientGameTest {
         try (TestSingleplayerContext world = context.worldBuilder()
                 .adjustSettings(settings -> settings.setGameMode(WorldCreationUiState.SelectedGameMode.SURVIVAL))
                 .create()) {
+            // The game test API for 26.1 waits for chunks on the client level, later versions on the server connection.
+            //? if >=26.2 {
             world.getConnection().waitForChunksRender();
+            //?} else {
+            /*world.getClientLevel().waitForChunksRender();
+            *///?}
             TestInput input = context.getInput();
 
             checkWalkingWithAlternativeKey(context, input);
@@ -137,6 +142,8 @@ public final class AlternativeKeyGameTest implements FabricClientGameTest {
             assertTrue(options.keyDrop.isDefault(), "a mapping without an alternative key stays default");
             assertTrue(options.keyUp.matches(new KeyEvent(UP.getValue(), 0, 0)),
                     "matches(KeyEvent) sees the alternative key");
+            // Minecraft 26.1 has no matches(Key), see KeyMappingMixin.
+            //? if >=26.2
             assertTrue(options.keyUp.matches(UP), "matches(Key) sees the alternative key");
             assertTrue(options.keyTogglePerspective.matchesMouse(
                     new MouseButtonEvent(0, 0, new MouseButtonInfo(MOUSE_5.getValue(), 0))),
@@ -267,7 +274,7 @@ public final class AlternativeKeyGameTest implements FabricClientGameTest {
 
         // Hover the first main inventory slot, then swap it with hotbar slot 1 through the alternative hotbar key.
         double[] cursor = context.computeOnClient(client -> {
-            InventoryScreen screen = (InventoryScreen) Objects.requireNonNull(client.gui.screen());
+            InventoryScreen screen = (InventoryScreen) Objects.requireNonNull(ClientScreens.current(client));
             Slot slot = screen.getMenu().slots.stream()
                     .filter(candidate -> candidate.container == client.player.getInventory()
                             && candidate.getContainerSlot() == MAIN_INVENTORY_SLOT)
@@ -289,7 +296,7 @@ public final class AlternativeKeyGameTest implements FabricClientGameTest {
                 "the hotbar key swapped the hovered slot with hotbar slot 1");
 
         input.pressKey(I);
-        context.waitFor(client -> client.gui.screen() == null, 20);
+        context.waitFor(client -> ClientScreens.current(client) == null, 20);
     }
 
     private static void checkScreenReleasesHeldKeys(ClientGameTestContext context, TestInput input) {
@@ -300,7 +307,7 @@ public final class AlternativeKeyGameTest implements FabricClientGameTest {
         context.waitForScreen(InventoryScreen.class);
         assertTrue(!isDown(context, options -> options.keyUp), "opening a screen releases the mapping like vanilla");
         input.pressKey(I);
-        context.waitFor(client -> client.gui.screen() == null, 20);
+        context.waitFor(client -> ClientScreens.current(client) == null, 20);
         input.releaseKey(UP);
         context.waitTick();
         assertTrue(!isDown(context, options -> options.keyUp), "still up after the forgotten key is released");

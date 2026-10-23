@@ -82,7 +82,7 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
             setLanguage(context, "en_us");
             input.resizeWindow(windowSize[0], windowSize[1]);
             context.restoreDefaultGameOptions();
-            context.runOnClient(client -> client.gui.setScreen(null));
+            context.runOnClient(ClientScreens::close);
         }
     }
 
@@ -171,7 +171,7 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
             assertEquals(KEYPAD_4.getDisplayName().getString(), button(client, left, ALTERNATIVE).getMessage().getString(),
                     "the alternative button shows the new key");
             assertEquals("key.keyboard.keypad.4", storedKeyName("key.left"), "the file is written at once");
-            assertTrue(client.gui.screen() instanceof KeyBindsScreen, "the screen stays open");
+            assertTrue(ClientScreens.current(client) instanceof KeyBindsScreen, "the screen stays open");
         });
     }
 
@@ -215,7 +215,7 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
             KeyMapping left = client.options.keyLeft;
             assertEquals(InputConstants.UNKNOWN, AlternativeKeys.get(left), "Escape unbinds the alternative key");
             assertTrue(selection(client).kaboomkeybinds$selectedAlternative() == null, "binding is finished");
-            assertTrue(client.gui.screen() instanceof KeyBindsScreen, "Escape does not close the screen while binding");
+            assertTrue(ClientScreens.current(client) instanceof KeyBindsScreen, "Escape does not close the screen while binding");
             assertEquals(null, storedKeyName("key.left"), "the entry is removed from the file");
             assertEquals(InputConstants.UNKNOWN.getDisplayName().getString(),
                     button(client, left, ALTERNATIVE).getMessage().getString(), "the button shows the unbound state");
@@ -345,12 +345,12 @@ public final class ControlsMenuGameTest implements FabricClientGameTest {
             return client.reloadResourcePacks();
         });
         // The loading overlay stays on screen and fades out after the reload itself has finished.
-        context.waitFor(client -> reload.isDone() && client.gui.overlay() == null, 1200);
+        context.waitFor(client -> reload.isDone() && !ClientScreens.hasOverlay(client), 1200);
         context.waitTicks(2);
     }
 
     private static KeyBindsScreen screen(Minecraft client) {
-        return (KeyBindsScreen) Objects.requireNonNull(client.gui.screen(), "the key binds screen is open");
+        return (KeyBindsScreen) Objects.requireNonNull(ClientScreens.current(client), "the key binds screen is open");
     }
 
     private static AlternativeKeySelection selection(Minecraft client) {
