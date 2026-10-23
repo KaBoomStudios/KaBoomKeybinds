@@ -355,6 +355,124 @@ class SecondaryKeyStoreTest {
     }
 
     @Test
+    void revertRenamesFilesOfTheSchemeBackAndDropsTheScheme() throws IOException {
+        writeFile("{\"version\": 1, \"keyNames\": \"scheme\", \"keys\": {\"key.jump\": \"key.keyboard.new.a\","
+                + " \"key.sneak\": \"key.keyboard.new.b\", \"key.drop\": \"key.keyboard.q\"}}");
+        Map<String, String> reverts = Map.of("key.keyboard.new.a", "key.keyboard.old.a",
+                "key.keyboard.new.b", "key.keyboard.old.b");
+
+        SecondaryKeyStore store = SecondaryKeyStore.load(file());
+
+        assertTrue(store.revertKeyNames("scheme", reverts));
+        assertEquals(Map.of("key.jump", "key.keyboard.old.a", "key.sneak", "key.keyboard.old.b",
+                "key.drop", "key.keyboard.q"), store.all());
+        assertEquals(Optional.empty(), store.keyNames());
+
+        // A name bound after the reversal follows the old scheme and is not renamed again.
+        store.set("key.attack", "key.keyboard.new.a");
+        assertFalse(store.revertKeyNames("scheme", reverts));
+        assertEquals(Optional.of("key.keyboard.new.a"), store.get("key.attack"));
+    }
+
+    @Test
+    void revertWithoutNewNamesOnlyDropsTheScheme() throws IOException {
+        writeFile("{\"version\": 1, \"keyNames\": \"scheme\", \"keys\": {\"key.jump\": \"key.keyboard.v\"}}");
+
+        SecondaryKeyStore store = SecondaryKeyStore.load(file());
+
+        assertFalse(store.revertKeyNames("scheme", Map.of("key.keyboard.new", "key.keyboard.old")));
+        assertEquals(Optional.of("key.keyboard.v"), store.get("key.jump"));
+        assertEquals(Optional.empty(), store.keyNames());
+    }
+
+    @Test
+    void revertLeavesFilesWithoutTheSchemeAlone() throws IOException {
+        Map<String, String> reverts = Map.of("key.keyboard.new", "key.keyboard.old");
+
+        writeFile("{\"version\": 1, \"keys\": {\"key.jump\": \"key.keyboard.new\"}}");
+        SecondaryKeyStore unmarked = SecondaryKeyStore.load(file());
+        assertFalse(unmarked.revertKeyNames("scheme", reverts));
+        assertEquals(Optional.of("key.keyboard.new"), unmarked.get("key.jump"), "a file without a scheme");
+        assertEquals(Optional.empty(), unmarked.keyNames());
+
+        writeFile("{\"version\": 1, \"keyNames\": \"other\", \"keys\": {\"key.jump\": \"key.keyboard.new\"}}");
+        SecondaryKeyStore otherScheme = SecondaryKeyStore.load(file());
+        assertFalse(otherScheme.revertKeyNames("scheme", reverts));
+        assertEquals(Optional.of("key.keyboard.new"), otherScheme.get("key.jump"), "a file of another scheme");
+        assertEquals(Optional.of("other"), otherScheme.keyNames());
+    }
+
+    @Test
+    void revertReachesTheFileWithTheNextSaveOnly() throws IOException {
+        String converted = "{\"version\": 1, \"keyNames\": \"scheme\", \"keys\": {\"key.jump\": \"key.keyboard.new\"}}";
+        writeFile(converted);
+
+        SecondaryKeyStore store = SecondaryKeyStore.load(file());
+        store.revertKeyNames("scheme", Map.of("key.keyboard.new", "key.keyboard.old"));
+        assertEquals(converted, readFile(), "the reversal alone does not write");
+
+        assertTrue(store.save());
+        JsonObject root = JsonParser.parseString(readFile()).getAsJsonObject();
+        assertFalse(root.has("keyNames"), "the saved file no longer names the scheme");
+        assertEquals("key.keyboard.old", root.getAsJsonObject("keys").get("key.jump").getAsString());
+        assertFalse(Files.exists(brokenFile()));
+    }
+
+    @Test
+    void namesStayTheSameOverRepeatedTripsBetweenBothSchemes() throws IOException {
+        Map<String, String> renames = Map.of("key.keyboard.old.a", "key.keyboard.new.a",
+                "key.keyboard.old.b", "key.keyboard.new.b");
+        Map<String, String> reverts = Map.of("key.keyboard.new.a", "key.keyboard.old.a",
+                "key.keyboard.new.b", "key.keyboard.old.b");
+        Map<String, String> oldNames = Map.of("key.jump", "key.keyboard.old.a", "key.drop", "key.keyboard.q");
+        Map<String, String> newNames = Map.of("key.jump", "key.keyboard.new.a", "key.drop", "key.keyboard.q");
+        SecondaryKeyStore first = SecondaryKeyStore.empty(file());
+        oldNames.forEach(first::set);
+        first.save();
+
+        for (int trip = 1; trip <= 3; trip++) {
+            SecondaryKeyStore newer = SecondaryKeyStore.load(file());
+            newer.migrateKeyNames("scheme", renames);
+            assertEquals(newNames, newer.all(), "newer version, trip " + trip);
+            newer.save();
+
+            // The older version only reads the file, so the newer one finds it as it left it.
+            SecondaryKeyStore readOnly = SecondaryKeyStore.load(file());
+            readOnly.revertKeyNames("scheme", reverts);
+            assertEquals(oldNames, readOnly.all(), "older version without a change, trip " + trip);
+            SecondaryKeyStore unchanged = SecondaryKeyStore.load(file());
+            assertFalse(unchanged.migrateKeyNames("scheme", renames));
+            assertEquals(newNames, unchanged.all(), "newer version after a visit without a change, trip " + trip);
+
+            // The older version saves the file, as after any change in the controls menu, and the newer one
+            // converts it again on the next trip.
+            SecondaryKeyStore older = SecondaryKeyStore.load(file());
+            older.revertKeyNames("scheme", reverts);
+            assertEquals(oldNames, older.all(), "older version, trip " + trip);
+            older.save();
+        }
+
+        SecondaryKeyStore last = SecondaryKeyStore.load(file());
+        assertEquals(oldNames, last.all());
+        assertEquals(Optional.empty(), last.keyNames());
+    }
+
+    @Test
+    void keysBoundInTheOlderVersionAreConvertedByTheNewerOne() throws IOException {
+        writeFile("{\"version\": 1, \"keyNames\": \"scheme\", \"keys\": {\"key.jump\": \"key.keyboard.new\"}}");
+        Map<String, String> renames = Map.of("key.keyboard.old", "key.keyboard.new");
+
+        SecondaryKeyStore older = SecondaryKeyStore.load(file());
+        older.revertKeyNames("scheme", Map.of("key.keyboard.new", "key.keyboard.old"));
+        older.set("key.sneak", "key.keyboard.old");
+        older.save();
+
+        SecondaryKeyStore newer = SecondaryKeyStore.load(file());
+        assertTrue(newer.migrateKeyNames("scheme", renames));
+        assertEquals(Map.of("key.jump", "key.keyboard.new", "key.sneak", "key.keyboard.new"), newer.all());
+    }
+
+    @Test
     void invalidKeyNamesAreIgnored() throws IOException {
         writeFile("{\"version\": 1, \"keyNames\": 5, \"keys\": {\"key.jump\": \"key.keyboard.v\"}}");
 

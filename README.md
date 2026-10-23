@@ -78,7 +78,9 @@ Minecraft 26.3 reads the keyboard through a new input library and gave three key
 before `key.keyboard.menu`) and, on Windows, the extra key next to left shift on ISO keyboards, `<` on German ones
 (`key.keyboard.world.1`, before `key.keyboard.world.2`). The jar for 26.3 renames these entries when it loads a file
 from an older version and writes the new names with the next change, together with the entry `"keyNames": "sdl"`,
-which marks the file as converted.
+which marks the file as converted. The jars for older versions rename the entries of a marked file back when they
+load it and write the old names without the mark with the next change. So 26.3 and older versions can share one game
+folder: each version reads the alternative keys of the other, and a file is only rewritten when something is changed.
 
 ## Building from source
 
@@ -133,10 +135,11 @@ is in development: the jars for Minecraft 26.1.x and 26.3 are in place, a releas
   picked up again only when the primary key of its keybind is a keyboard key
 - In 26.1.x, Minecraft checks the "Toggle Fullscreen" and "Take Screenshot" keybinds against keyboard keys only. A
   mouse button bound to them does nothing there, as key or as alternative key. Since 26.2 mouse buttons work for them
-- Alternative keys carry over from 26.1.x and 26.2 to 26.3, the three renamed keys included (see Configuration). The
-  way back does not work for those three: once the jar for 26.3 has saved the file, an older version that shares the
-  game folder no longer recognizes them and they have to be bound again there. Vanilla has the same issue with its own
-  options file. If any other alternative key from an older version does not work in 26.3, binding it again fixes it
+- Alternative keys carry over between 26.3 and older versions in both directions, the three renamed keys included
+  (see Configuration). Two cases remain: the separate menu key that a few Linux keyboards have, bound in 26.3, turns
+  into the context menu key once an older version has saved the file, and macOS with ISO keyboards is untested. If an
+  alternative key does not work after switching versions, binding it again fixes it. Minecraft itself does not convert
+  the primary keys in its options file
 - In very narrow windows, names that do not fit next to the buttons are shortened with an ellipsis, and at the
   smallest row width the button labels can overflow the buttons, as they do in vanilla
 - Mods that replace the controls menu (for example Controlling) are untested. Mods that only add keybinds work, the

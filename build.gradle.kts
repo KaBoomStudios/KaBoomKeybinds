@@ -102,17 +102,22 @@ tasks.test {
 
 // The client game tests check that alternative keys are loaded at startup, so the test client starts with a
 // prepared file in its config directory. The file is copied before every run to undo changes made by the tests.
+// It binds three keys that were renamed with Minecraft 26.3 by the names of the other naming scheme, which tests both
+// directions of the conversion: 26.3 starts with GLFW names written by older versions, the older versions start with
+// SDL names written by 26.3.
 // Loom applies the run directory only when the task executes, so it is taken from the run configuration here.
 // Only plain files are captured by the task action, which keeps the configuration cache happy.
+val gameTestFixture = rootDir.resolve(
+    "src/gametest/fixtures/" + if (sc.current.parsed >= "26.3") "glfw-key-names.json" else "sdl-key-names.json")
 tasks.configureEach {
     if (name == "runClientGameTest") {
-        val fixture = rootDir.resolve("src/gametest/fixtures/kaboomkeybinds.json")
+        val fixture = gameTestFixture
         val runDir = loom.runs.getByName("clientGameTest").runDirectory.get().asFile
         inputs.file(fixture)
         doFirst {
             val configDir = runDir.resolve("config")
             configDir.mkdirs()
-            fixture.copyTo(configDir.resolve(fixture.name), overwrite = true)
+            fixture.copyTo(configDir.resolve("kaboomkeybinds.json"), overwrite = true)
         }
     }
 }

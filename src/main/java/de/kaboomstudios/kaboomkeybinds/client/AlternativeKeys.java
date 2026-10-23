@@ -6,10 +6,13 @@ import de.kaboomstudios.kaboomkeybinds.core.KeyPair;
 import de.kaboomstudios.kaboomkeybinds.core.KeySlot;
 import de.kaboomstudios.kaboomkeybinds.core.SecondaryKeyStore;
 import java.nio.file.Path;
-//? if >=26.3
-//import java.util.Map;
+//? if <26.3
+import java.util.HashMap;
+import java.util.Map;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
+//? if <26.3
+import net.minecraft.util.Util;
 import org.slf4j.Logger;
 
 /**
@@ -22,20 +25,21 @@ import org.slf4j.Logger;
  */
 public final class AlternativeKeys {
     private static final Logger LOGGER = KaBoomKeybinds.LOGGER;
-    //? if >=26.3 {
-    /*// Since 26.3 Minecraft reads the keyboard through SDL instead of GLFW. Key names still stand for the same physical
+    // Since 26.3 Minecraft reads the keyboard through SDL instead of GLFW. Key names still stand for the same physical
     // keys, except for three whose old name now means another key, one that desktop systems hardly ever report:
     // the keypad decimal point (GLFW KP_DECIMAL, SDL KP_PERIOD; the old name is now SDL KP_DECIMAL), the context menu
     // key (GLFW MENU, SDL APPLICATION; the old name is now SDL MENU, a separate key on a few Linux keyboards) and the
     // extra key next to left shift on ISO keyboards, "<" on German ones (GLFW reports it as WORLD_2 on Windows, SDL as
-    // NONUSBACKSLASH, which Minecraft names world.1; world.2 is now SDL NONUSHASH). Files written by older versions
-    // are renamed once when loaded, see SecondaryKeyStore.migrateKeyNames.
-    private static final String KEY_NAMES = "sdl";
-    private static final Map<String, String> RENAMED_KEYS = Map.of(
+    // NONUSBACKSLASH, which Minecraft names world.1; world.2 is now SDL NONUSHASH). The build for 26.3 renames files
+    // written by older versions once when they are loaded and marks them with the SDL scheme. The builds for older
+    // versions rename marked files back, so that one game folder can be shared between 26.3 and older versions, see
+    // SecondaryKeyStore.migrateKeyNames and revertKeyNames.
+    private static final String SDL_KEY_NAMES = "sdl";
+    /** GLFW name to SDL name of the keys that have another name since 26.3. */
+    private static final Map<String, String> SDL_RENAMED_KEYS = Map.of(
             "key.keyboard.keypad.decimal", "key.keyboard.keypad.period",
             "key.keyboard.menu", "key.keyboard.application",
             "key.keyboard.world.2", "key.keyboard.world.1");
-    *///?}
     private static SecondaryKeyStore store;
 
     private AlternativeKeys() {
@@ -48,17 +52,35 @@ public final class AlternativeKeys {
 
     /**
      * The store, loaded on first use. Key mappings are created while the game options are constructed, before any
-     * mod entry point runs, so the store cannot be loaded from the entry point. Key names that an older Minecraft
-     * version wrote for a key that has a new name now are renamed here and saved with the next change.
+     * mod entry point runs, so the store cannot be loaded from the entry point. Key names that a Minecraft version
+     * with the other naming scheme wrote for a key that is named differently here are renamed and saved with the
+     * next change.
      */
     public static synchronized SecondaryKeyStore store() {
         if (store == null) {
             store = SecondaryKeyStore.load(file());
-            //? if >=26.3
-            //store.migrateKeyNames(KEY_NAMES, RENAMED_KEYS);
+            //? if >=26.3 {
+            /*store.migrateKeyNames(SDL_KEY_NAMES, SDL_RENAMED_KEYS);
+            *///?} else {
+            store.revertKeyNames(SDL_KEY_NAMES, glfwNamesOfRenamedKeys());
+            //?}
         }
         return store;
     }
+
+    //? if <26.3 {
+    // SDL name to GLFW name, the table above read backwards for this platform. GLFW names the ISO key world.2 on
+    // Windows only, on Linux and macOS it is world.1 as in SDL and keeps its name. SDL's menu, the separate Linux key,
+    // has no GLFW name of its own and keeps its name as well, which GLFW reads as the context menu key.
+    private static Map<String, String> glfwNamesOfRenamedKeys() {
+        Map<String, String> glfwNames = new HashMap<>();
+        SDL_RENAMED_KEYS.forEach((glfwName, sdlName) -> glfwNames.put(sdlName, glfwName));
+        if (Util.getPlatform() != Util.OS.WINDOWS) {
+            glfwNames.remove("key.keyboard.world.1");
+        }
+        return glfwNames;
+    }
+    //?}
 
     /**
      * The stored alternative key for a key mapping name. {@link InputConstants#UNKNOWN} if nothing is stored or the

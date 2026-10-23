@@ -30,13 +30,14 @@ import net.minecraft.world.phys.Vec3;
 //? if >=26.3 {
 /*import org.lwjgl.sdl.SDLScancode;
 *///?} else {
+import net.minecraft.util.Util;
 import org.lwjgl.glfw.GLFW;
 //?}
 
 /**
  * Checks that alternative keys are loaded at startup and trigger their mappings everywhere a primary key would.
  *
- * <p>The build copies {@code src/gametest/fixtures/kaboomkeybinds.json} into the config directory of the test
+ * <p>The build copies a prepared file from {@code src/gametest/fixtures} into the config directory of the test
  * client before it starts, so the keys below are already bound when the game options are created. The keys are
  * unbound in vanilla, which keeps the vanilla mappings out of the way.
  */
@@ -49,24 +50,34 @@ public final class AlternativeKeyGameTest implements FabricClientGameTest {
     private static final InputConstants.Key I = InputConstants.getKey("key.keyboard.i");
     private static final InputConstants.Key MOUSE_5 = InputConstants.getKey("key.mouse.5");
 
-    // The prepared file binds three keys by the names Minecraft 26.2 and older wrote for them. Since 26.3 these names
-    // stand for other keys, so the file is renamed when it is loaded. The expected keys are taken from the constants
-    // of the input library each version uses, independently of the mod's own table.
-    private static final String OLD_KEYPAD_DECIMAL = "key.keyboard.keypad.decimal";
-    private static final String OLD_CONTEXT_MENU = "key.keyboard.menu";
-    private static final String OLD_NON_US_BACKSLASH = "key.keyboard.world.2";
+    // The prepared file binds three keys that were renamed with 26.3 by the names of the other naming scheme: 26.3
+    // starts with the names older versions wrote, older versions start with a file that 26.3 converted and marked with
+    // its scheme. The file is renamed when it is loaded and written with the names of the running version at the
+    // first save. The expected keys are taken from the constants of the input library each version uses,
+    // independently of the mod's own table.
     //? if >=26.3 {
-    /*private static final InputConstants.Key KEYPAD_DECIMAL =
+    /*private static final String FILE_KEYPAD_DECIMAL = "key.keyboard.keypad.decimal";
+    private static final String FILE_CONTEXT_MENU = "key.keyboard.menu";
+    private static final String FILE_NON_US_BACKSLASH = "key.keyboard.world.2";
+    private static final String FILE_KEY_NAMES = null;
+    private static final String SAVED_KEY_NAMES = "sdl";
+    private static final InputConstants.Key KEYPAD_DECIMAL =
             InputConstants.Type.KEYBOARD.getOrCreate(SDLScancode.SDL_SCANCODE_KP_PERIOD);
     private static final InputConstants.Key CONTEXT_MENU =
             InputConstants.Type.KEYBOARD.getOrCreate(SDLScancode.SDL_SCANCODE_APPLICATION);
     private static final InputConstants.Key NON_US_BACKSLASH =
             InputConstants.Type.KEYBOARD.getOrCreate(SDLScancode.SDL_SCANCODE_NONUSBACKSLASH);
     *///?} else {
+    private static final String FILE_KEYPAD_DECIMAL = "key.keyboard.keypad.period";
+    private static final String FILE_CONTEXT_MENU = "key.keyboard.application";
+    private static final String FILE_NON_US_BACKSLASH = "key.keyboard.world.1";
+    private static final String FILE_KEY_NAMES = "sdl";
+    private static final String SAVED_KEY_NAMES = null;
     private static final InputConstants.Key KEYPAD_DECIMAL = InputConstants.Type.KEYSYM.getOrCreate(GLFW.GLFW_KEY_KP_DECIMAL);
     private static final InputConstants.Key CONTEXT_MENU = InputConstants.Type.KEYSYM.getOrCreate(GLFW.GLFW_KEY_MENU);
-    // GLFW reports the extra key next to left shift on ISO keyboards as WORLD_2 on Windows.
-    private static final InputConstants.Key NON_US_BACKSLASH = InputConstants.Type.KEYSYM.getOrCreate(GLFW.GLFW_KEY_WORLD_2);
+    // GLFW reports the extra key next to left shift on ISO keyboards as WORLD_2 on Windows and as WORLD_1 elsewhere.
+    private static final InputConstants.Key NON_US_BACKSLASH = InputConstants.Type.KEYSYM.getOrCreate(
+            Util.getPlatform() == Util.OS.WINDOWS ? GLFW.GLFW_KEY_WORLD_2 : GLFW.GLFW_KEY_WORLD_1);
     //?}
 
     /** Size of the survival inventory screen, used to find the slot under the cursor. */
@@ -126,17 +137,18 @@ public final class AlternativeKeyGameTest implements FabricClientGameTest {
                     "entries of mappings that do not exist must be kept");
 
             assertEquals(KEYPAD_DECIMAL, AlternativeKeys.get(options.keySpectatorOutlines),
-                    OLD_KEYPAD_DECIMAL + " is the keypad decimal point");
+                    FILE_KEYPAD_DECIMAL + " is the keypad decimal point");
             assertEquals(CONTEXT_MENU, AlternativeKeys.get(options.keyLoadHotbarActivator),
-                    OLD_CONTEXT_MENU + " is the context menu key");
+                    FILE_CONTEXT_MENU + " is the context menu key");
             assertEquals(NON_US_BACKSLASH, AlternativeKeys.get(options.keySaveHotbarActivator),
-                    OLD_NON_US_BACKSLASH + " is the extra key of ISO keyboards");
-            assertEquals(OLD_KEYPAD_DECIMAL, storedKeyName("key.spectatorOutlines"),
-                    "loading leaves the file as an older version wrote it");
-            assertEquals(OLD_CONTEXT_MENU, storedKeyName("key.loadToolbarActivator"),
-                    "loading leaves the file as an older version wrote it");
-            assertEquals(OLD_NON_US_BACKSLASH, storedKeyName("key.saveToolbarActivator"),
-                    "loading leaves the file as an older version wrote it");
+                    FILE_NON_US_BACKSLASH + " is the extra key of ISO keyboards");
+            assertEquals(FILE_KEYPAD_DECIMAL, storedKeyName("key.spectatorOutlines"),
+                    "loading leaves the file as the other version wrote it");
+            assertEquals(FILE_CONTEXT_MENU, storedKeyName("key.loadToolbarActivator"),
+                    "loading leaves the file as the other version wrote it");
+            assertEquals(FILE_NON_US_BACKSLASH, storedKeyName("key.saveToolbarActivator"),
+                    "loading leaves the file as the other version wrote it");
+            assertEquals(FILE_KEY_NAMES, storedKeyNames(), "loading leaves the naming scheme of the file as it is");
 
             assertTrue(!options.keyUp.isDefault(), "a mapping with an alternative key is not default");
             assertTrue(options.keyDrop.isDefault(), "a mapping without an alternative key stays default");
@@ -169,7 +181,7 @@ public final class AlternativeKeyGameTest implements FabricClientGameTest {
         assertTrue(distance > 0.5, "the player must walk while the alternative forward key is held, moved " + distance);
     }
 
-    /** The keys bound under older names trigger their mappings through the physical keys they stand for. */
+    /** The keys bound under the names of the other scheme trigger their mappings through the keys they stand for. */
     private static void checkKeysFromOlderKeyNames(ClientGameTestContext context, TestInput input) {
         checkHeld(context, input, KEYPAD_DECIMAL, options -> options.keySpectatorOutlines);
         checkHeld(context, input, CONTEXT_MENU, options -> options.keyLoadHotbarActivator);
@@ -326,17 +338,12 @@ public final class AlternativeKeyGameTest implements FabricClientGameTest {
             assertEquals("key.keyboard.keypad.2", storedKeyName("key.drop"), "the file holds the new key at once");
             assertEquals("key.keyboard.x", storedKeyName("key.othermod.example"), "unknown mappings survive a save");
             assertEquals("not-a-key", storedKeyName("key.chat"), "unknown key names survive a save");
-            // The first save writes the names of the running version for keys bound under older names.
+            // The first save writes the names and the naming scheme of the running version.
             assertEquals(KEYPAD_DECIMAL.getName(), storedKeyName("key.spectatorOutlines"), "keypad decimal point saved");
             assertEquals(CONTEXT_MENU.getName(), storedKeyName("key.loadToolbarActivator"), "context menu key saved");
             assertEquals(NON_US_BACKSLASH.getName(), storedKeyName("key.saveToolbarActivator"), "ISO extra key saved");
-            //? if >=26.3 {
-            /*assertEquals("key.keyboard.keypad.period", storedKeyName("key.spectatorOutlines"), "renamed in the file");
-            assertEquals("sdl", readStoredFile().get("keyNames").getAsString(), "the file names the new key names");
-            *///?} else {
-            assertEquals(OLD_KEYPAD_DECIMAL, storedKeyName("key.spectatorOutlines"), "older versions keep the name");
-            assertTrue(!readStoredFile().has("keyNames"), "older versions write the file without a naming scheme");
-            //?}
+            assertTrue(!FILE_KEYPAD_DECIMAL.equals(storedKeyName("key.spectatorOutlines")), "renamed in the file");
+            assertEquals(SAVED_KEY_NAMES, storedKeyNames(), "the file names the scheme of the running version");
 
             AlternativeKeys.setAlternative(drop, inventoryPrimary);
             assertTrue(drop.same(inventory), "conflict: alternative key against the primary key of another mapping");
@@ -372,6 +379,11 @@ public final class AlternativeKeyGameTest implements FabricClientGameTest {
     private static String storedKeyName(String mappingName) {
         JsonObject keys = readStoredFile().getAsJsonObject("keys");
         return keys.has(mappingName) ? keys.get(mappingName).getAsString() : null;
+    }
+
+    private static String storedKeyNames() {
+        JsonObject root = readStoredFile();
+        return root.has("keyNames") ? root.get("keyNames").getAsString() : null;
     }
 
     private static JsonObject readStoredFile() {

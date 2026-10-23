@@ -46,7 +46,8 @@ import org.slf4j.Logger;
  * for mappings that do not currently exist (for example from a mod that was removed) so they return when that mod is
  * installed again, and it leaves the meaning of a key name to the client layer, which resolves it with Minecraft.
  * The optional {@code keyNames} entry names the key naming scheme the entries follow, see
- * {@link #migrateKeyNames(String, Map)}. Files without it follow the scheme of Minecraft 26.2 and older.
+ * {@link #migrateKeyNames(String, Map)} and {@link #revertKeyNames(String, Map)}. Files without it follow the scheme
+ * of Minecraft 26.2 and older.
  *
  * <p>A file that cannot be read never crashes the game. The store logs a warning, starts empty and moves the
  * unreadable file aside as {@code kaboomkeybinds.json.broken} before it writes for the first time, so nothing is lost.
@@ -70,7 +71,7 @@ public final class SecondaryKeyStore {
     private final Path file;
     /** Sorted so that the written file is stable and easy to compare. */
     private final SortedMap<String, String> keys = new TreeMap<>();
-    /** Key naming scheme of the entries, {@code null} when the file names none. Kept as read until a migration. */
+    /** Key naming scheme of the entries, {@code null} when the file names none. Kept as read until a renaming. */
     private String keyNames;
     /** Set when the existing file could not be used. It is moved aside before the next save overwrites it. */
     private boolean keepExistingFileAside;
@@ -215,17 +216,45 @@ public final class SecondaryKeyStore {
         if (scheme.equals(keyNames)) {
             return false;
         }
+        boolean renamed = rename(renames, "the key names changed with this game version");
+        keyNames = scheme;
+        return renamed;
+    }
+
+    /**
+     * The way back of {@link #migrateKeyNames(String, Map)}, for game versions that still use the old key names and
+     * load a file a newer version converted. Runs only for a store that follows {@code scheme}: the entries get their
+     * old names and the store no longer names a scheme, so the newer version converts the file again once it was
+     * saved with old names. Stores without a scheme or with another one are left as they are.
+     *
+     * <p>Nothing is written here either. As long as nothing is changed, the file stays as the newer version wrote it.
+     *
+     * @param scheme the naming scheme the newer game version writes
+     * @param renames new key name to old key name
+     * @return whether an entry was renamed
+     */
+    public boolean revertKeyNames(String scheme, Map<String, String> renames) {
+        Objects.requireNonNull(scheme, "scheme");
+        Objects.requireNonNull(renames, "renames");
+        if (!scheme.equals(keyNames)) {
+            return false;
+        }
+        boolean renamed = rename(renames, "this game version uses the key names of older versions");
+        keyNames = null;
+        return renamed;
+    }
+
+    private boolean rename(Map<String, String> renames, String reason) {
         boolean renamed = false;
         for (Map.Entry<String, String> entry : keys.entrySet()) {
             String newName = renames.get(entry.getValue());
             if (newName != null) {
-                LOGGER.info("Renaming alternative key {} of {} to {}, the key names changed with this game version",
-                        entry.getValue(), entry.getKey(), newName);
+                LOGGER.info("Renaming alternative key {} of {} to {}, {}", entry.getValue(), entry.getKey(), newName,
+                        reason);
                 entry.setValue(newName);
                 renamed = true;
             }
         }
-        keyNames = scheme;
         return renamed;
     }
 

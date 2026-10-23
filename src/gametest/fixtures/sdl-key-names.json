@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "keyNames": "sdl",
+  "keys": {
+    "key.chat": "not-a-key",
+    "key.forward": "key.keyboard.up",
+    "key.hotbar.1": "key.keyboard.keypad.1",
+    "key.inventory": "key.keyboard.i",
+    "key.jump": "key.keyboard.keypad.0",
+    "key.kaboomkeybinds-gametest.long_name": "key.keyboard.f12",
+    "key.loadToolbarActivator": "key.keyboard.application",
+    "key.othermod.example": "key.keyboard.x",
+    "key.saveToolbarActivator": "key.keyboard.world.1",
+    "key.sneak": "key.keyboard.right.shift",
+    "key.spectatorOutlines": "key.keyboard.keypad.period",
+    "key.togglePerspective": "key.mouse.5"
+  }
+}
